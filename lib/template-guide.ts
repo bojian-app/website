@@ -1,4 +1,4 @@
-// Matched to the DOCX filler in bojian-backend/internal/render/docx_fill.go.
+// Shared HTML DOM contract consumed by bojian-mobile/assets/templates/market_renderer.js.
 export const basicTemplateFields = [
   ["name", "姓名", "林晓（示例）"],
   ["phone", "联系电话", "用户填写的电话号码"],
@@ -33,13 +33,12 @@ export const templateItemFields = [
 
 export const guideExamples = {
   basic:
-    "{{name}}\n{{position}}\n{{?phone}}电话：{{phone}}{{/if}}\n{{?email}}邮箱：{{email}}{{/if}}",
+    "<h1>{{name}}</h1>\n<p>{{position}}</p>\n<p>{{#if phone}}电话：{{phone}}{{/if}}</p>",
   experience:
-    "{{?work_experiences}}\n工作经历\n{{#work_experiences}}\n{{title}}{{?subtitle}} · {{subtitle}}{{/if}}\n{{start_date}}{{?end_date}} — {{end_date}}{{/if}}\n{{detail}}\n{{?secondary_detail}}{{secondary_detail}}{{/if}}\n{{/work_experiences}}\n{{/if}}",
+    "<h2>工作经历</h2>\n<p>{{#work_experiences}}</p>\n<div>\n  <h3>{{title}}{{#if subtitle}} · {{subtitle}}{{/if}}</h3>\n  <p>{{start_date}}{{#if end_date}} — {{end_date}}{{/if}}</p>\n  <p>{{detail}}</p>\n</div>\n<p>{{/work_experiences}}</p>",
   skills:
-    "{{?skills}}\n专业技能\n{{#skills}}\n{{name}}{{?detail}}：{{detail}}{{/if}}\n{{/skills}}\n{{/if}}",
-  inline: "{{?phone}}电话：{{phone}}{{/if}}",
+    "<p>{{#skills}}</p>\n<p>{{name}}{{#if detail}}：{{detail}}{{/if}}</p>\n<p>{{/skills}}</p>",
+  inline: "<p>{{#if phone}}电话：{{phone}}{{/if}}</p>",
   block:
-    "{{?certifications}}\n证书与荣誉\n{{#certifications}}\n{{title}}{{?subtitle}} · {{subtitle}}{{/if}}\n{{/certifications}}\n{{/if}}",
-  any: "{{?city|industry|salary|preference}}\n求职期望\n{{?city}}城市：{{city}}{{/if}}\n{{?industry}}行业：{{industry}}{{/if}}\n{{?salary}}薪资：{{salary}}{{/if}}\n{{preference}}\n{{/if}}",
+    "<p>{{#if preference}}</p>\n<h2>个人简介</h2>\n<p>{{preference}}</p>\n<p>{{/if}}</p>",
 } as const;

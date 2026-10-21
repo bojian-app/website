@@ -288,6 +288,7 @@ before(async () => {
     }
     if (
       url.pathname.startsWith("/api/v1/creator/") ||
+      url.pathname.startsWith("/api/v1/templates/") ||
       url.pathname.startsWith("/api/v1/files/") ||
       ["/api/v1/me/templates", "/api/v1/me/identity-verification"].includes(
         url.pathname,
@@ -296,6 +297,14 @@ before(async () => {
       if (!entry?.active || entry.device !== device || profileInvalid)
         return json(res, 401, { error: { code: "SESSION_INVALID" } });
       creatorCalls.push(req.method + " " + url.pathname);
+      const previewMatch = url.pathname.match(/^\/api\/v1\/templates\/(\d+)\/preview-assets$/);
+      if (previewMatch) {
+        const template = creatorTemplates.get(Number(previewMatch[1]));
+        if (!template || template.device !== device) return json(res,404,{error:{code:"TEMPLATE_UNAVAILABLE"}});
+        assert.equal(url.searchParams.get("version"),"1");
+        return json(res,200,{data:{version:1,preview_status:"READY",preview_pdf_url:"https://assets.example.test/preview.pdf",thumbnail_url:"https://assets.example.test/preview.png"}});
+      }
+
       if (url.pathname === "/api/v1/me/identity-verification")
         return json(res, 200, {
           data: {
@@ -317,7 +326,9 @@ before(async () => {
         assert.equal(body.purpose, "TEMPLATE_SOURCE");
         assert.equal(
           body.content_type,
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          /\.docx$/i.test(body.filename)
+            ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            : "text/html",
         );
         const id = creatorUploads.size + 1,
           key = `fixture-template-${id}.docx`;
@@ -1195,10 +1206,11 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   });
   await page.getByRole("button", { name: "上传模板", exact: true }).click();
   await page.locator("#template-file").setInputFiles({
-    name: "示例模板.docx",
-    mimeType:
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    buffer: Buffer.from([80, 75, 3, 4, 1, 2, 3, 4]),
+    name: "示例模板.html",
+    mimeType: "text/html",
+    buffer: Buffer.from(
+      "<!doctype html><html><body><h1>{{name}}</h1></body></html>",
+    ),
   });
   await page.getByLabel("模板名称").fill("留白 · 单栏简历");
   await page.getByLabel("模板介绍").fill("使用示例资料的测试模板");
@@ -1230,6 +1242,10 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   await page.getByRole("button", { name: "保存草稿", exact: true }).click();
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   await page.getByRole("heading", { name: "留白 · 单栏简历" }).waitFor();
+  await page.getByRole("button", { name: "查看预览", exact: true }).click();
+  await page.getByRole("link",{name:"打开完整 PDF 预览 ↗"}).waitFor();
+  assert.equal(await page.getByRole("link",{name:"打开完整 PDF 预览 ↗"}).getAttribute("href"),"https://assets.example.test/preview.pdf");
+
   assert(
     await page
       .getByRole("button", { name: "提交审核", exact: true })

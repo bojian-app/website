@@ -1,6 +1,6 @@
 import { AuthRequestError } from "./auth-client";
 import {
-  DOCX_MIME,
+  templateMime,
   MAX_TEMPLATE_BYTES,
   type UploadTicket,
 } from "./creator-types";
@@ -38,7 +38,8 @@ export async function creatorRequest<T>(
   }
 }
 export function validateTemplateFile(file: File) {
-  if (!/\.docx$/i.test(file.name)) return "请选择 DOCX 格式的 Word 文件。";
+  if (!/\.(docx|html|htm)$/i.test(file.name))
+    return "请选择 HTML 或 DOCX 模板文件。";
   if (!file.size || file.size > MAX_TEMPLATE_BYTES)
     return "文件须大于 0 字节且不超过 8 MB。";
   return "";
@@ -52,10 +53,8 @@ export async function uploadTemplate(
   if (invalid) throw new Error(invalid);
   const magic = new Uint8Array(await file.slice(0, 4).arrayBuffer());
   if (
-    magic[0] !== 0x50 ||
-    magic[1] !== 0x4b ||
-    magic[2] !== 3 ||
-    magic[3] !== 4
+    /\.docx$/i.test(file.name) &&
+    (magic[0] !== 0x50 || magic[1] !== 0x4b || magic[2] !== 3 || magic[3] !== 4)
   )
     throw new Error(
       "文件不是有效的 DOCX 文档，请用 Word 另存为 .docx 后重试。",
@@ -69,7 +68,11 @@ export async function uploadTemplate(
   const data = new FormData();
   for (const [key, value] of Object.entries(ticket.fields))
     data.append(key, value);
-  data.append("file", new Blob([file], { type: DOCX_MIME }), file.name);
+  data.append(
+    "file",
+    new Blob([file], { type: templateMime(file.name) }),
+    file.name,
+  );
   const result = await fetch(ticket.upload_url, {
     method: "POST",
     body: data,

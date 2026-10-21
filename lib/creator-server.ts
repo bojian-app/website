@@ -8,7 +8,7 @@ import {
   withAuthenticatedApi,
 } from "./auth-server";
 import {
-  DOCX_MIME,
+  templateMime,
   MAX_TEMPLATE_BYTES,
   type CreatorTemplate,
 } from "./creator-types";
@@ -80,6 +80,7 @@ function projectTemplate(value: unknown): CreatorTemplate {
   const data = object(value);
   return {
     id: String(positive(data.id)),
+    version: positive(data.version ?? 1),
     name: string(data.name, 160, true),
     description:
       typeof data.description === "string"
@@ -103,11 +104,12 @@ export async function creatorRoute(request: NextRequest, path: string[]) {
   try {
     if (request.method !== "GET") protectMutation(request);
     const route = path.join("/");
+    const preview = /^templates\/([1-9]\d{0,15})\/preview$/.exec(route);
     const complete = /^uploads\/([1-9]\d{0,15})\/complete$/.exec(route);
     const edit = /^templates\/([1-9]\d{0,15})$/.exec(route);
     const submit = /^templates\/([1-9]\d{0,15})\/submit$/.exec(route);
     if (
-      !(request.method === "GET" && route === "workspace") &&
+      !(request.method === "GET" && (route === "workspace" || preview)) &&
       !(
         request.method === "POST" &&
         (route === "uploads" || route === "templates" || complete || submit)
@@ -141,21 +143,42 @@ export async function creatorRoute(request: NextRequest, path: string[]) {
             verification.valid_until >= today,
         });
       }
+      if (preview) {
+        positive(Number(preview[1]));
+        const result = object(
+          await api(
+            `/api/v1/templates/${preview[1]}/preview-assets?version=${positive(Number(request.nextUrl.searchParams.get("version")))}`,
+          ),
+        );
+        const safe: Json = {
+          status: result.preview_status,
+          version: result.version,
+        };
+        for (const key of ["preview_pdf_url", "thumbnail_url"]) {
+          if (typeof result[key] === "string") {
+            const url = new URL(result[key] as string);
+            if (url.protocol !== "https:" || url.username || url.password)
+              throw invalid("预览地址无效。");
+            safe[key] = url.href;
+          }
+        }
+        return reply(safe);
+      }
       if (route === "uploads") {
         const filename = string(data.filename, 240, true),
           size = positive(data.size_bytes);
         if (
-          !/\.docx$/i.test(filename) ||
+          !/\.(docx|html|htm)$/i.test(filename) ||
           /[\/\\]/.test(filename) ||
           size > MAX_TEMPLATE_BYTES
         )
-          throw invalid("请上传不超过 8 MB 的 DOCX 文件。");
+          throw invalid("请上传不超过 8 MB 的 HTML 或 DOCX 文件。");
         const ticket = object(
           await api("/api/v1/files/uploads", "POST", {
             purpose: "TEMPLATE_SOURCE",
             filename,
             size_bytes: size,
-            content_type: DOCX_MIME,
+            content_type: templateMime(filename),
           }),
         );
         const url = new URL(String(ticket.upload_url)),
@@ -226,7 +249,9 @@ export async function creatorRoute(request: NextRequest, path: string[]) {
         if (check.status !== "READY")
           throw new AuthFailure(
             "TEMPLATE_CHECK_FAILED",
-            "模板检查未通过，请修改 DOCX 文件后重新上传。",
+            typeof check.message === "string"
+              ? check.message.slice(0, 500)
+              : "模板实际渲染未通过，请修改源文件后重新上传。",
             422,
           );
         const result = object(

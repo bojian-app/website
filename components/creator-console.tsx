@@ -22,6 +22,58 @@ import {
   type TemplateInput,
 } from "@/lib/creator-types";
 
+function TemplatePreview({ id, version }: { id: string; version: number }) {
+  const [preview, setPreview] = useState<{
+    status: string;
+    preview_pdf_url?: string;
+    thumbnail_url?: string;
+  } | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  async function load() {
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      setPreview(
+        await creatorRequest(`templates/${id}/preview?version=${version}`),
+      );
+    } catch (error) {
+      setError(message(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <div>
+      <button
+        className="console-button quiet"
+        disabled={loading}
+        onClick={() => void load()}
+      >
+        {loading ? "正在读取…" : "查看预览"}
+      </button>
+      {error && <p role="alert">{error}</p>}
+      {preview?.status === "READY" && (
+        <a
+          href={preview.preview_pdf_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="console-button quiet"
+        >
+          打开完整 PDF 预览 ↗
+        </a>
+      )}
+      {preview && preview.status !== "READY" && (
+        <p>
+          {preview.status === "FAILED"
+            ? "预览生成失败，请修正源文件后重新上传。"
+            : "预览正在准备，请稍后重试。"}
+        </p>
+      )}
+    </div>
+  );
+}
 function Icon({
   kind = "document",
 }: {
@@ -333,7 +385,7 @@ function Workspace() {
             <p>
               {items.length
                 ? "试试其他状态，或上传一份新模板。"
-                : "上传一份 DOCX 简历模板，保存草稿，再提交上架审核。"}
+                : "上传一份 HTML 或 DOCX 简历模板，保存草稿，再提交上架审核。"}
             </p>
             <button
               className="console-button secondary"
@@ -342,7 +394,9 @@ function Workspace() {
               <Icon kind="upload" />
               {items.length ? "上传新模板" : "上传第一份模板"}
             </button>
-            <span className="console-file-hint">支持 .docx · 最大 8 MB</span>
+            <span className="console-file-hint">
+              支持 .html / .docx · 最大 8 MB
+            </span>
           </div>
         ) : (
           <div className="console-template-list">
@@ -350,7 +404,7 @@ function Workspace() {
               <article className="console-template" key={template.id}>
                 <span className="console-template-icon">
                   <Icon />
-                  <span>DOCX</span>
+                  <span>模板</span>
                 </span>
                 <div className="console-template-info">
                   <div>
@@ -374,6 +428,11 @@ function Workspace() {
                     </p>
                   )}
                 </div>
+                <TemplatePreview
+                  key={`${template.id}-${template.version}`}
+                  id={template.id}
+                  version={template.version}
+                />
                 {(template.status === "DRAFT" ||
                   template.status === "REJECTED") && (
                   <div className="console-template-actions">
@@ -490,7 +549,8 @@ function TemplateEditor({
     if (error) return;
     setFile(selected);
     uploaded.current = null;
-    if (!name) setName(selected.name.replace(/\.docx$/i, "").slice(0, 160));
+    if (!name)
+      setName(selected.name.replace(/\.(docx|html|htm)$/i, "").slice(0, 160));
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -598,7 +658,7 @@ function TemplateEditor({
               e.preventDefault();
               setDragging(false);
               if (e.dataTransfer.files.length !== 1)
-                setError("每次请选择一个 DOCX 文件。");
+                setError("每次请选择一个 HTML 或 DOCX 文件。");
               else selectFile(e.dataTransfer.files[0]);
             }}
           >
@@ -606,11 +666,9 @@ function TemplateEditor({
               ref={fileInput}
               id="template-file"
               type="file"
-              accept={`.docx,${DOCX_MIME}`}
+              accept={`.html,.htm,text/html,.docx,${DOCX_MIME}`}
               className="sr-only"
-              aria-label={
-                template ? "替换 DOCX 文件（可选）" : "选择 DOCX 文件"
-              }
+              aria-label={template ? "替换模板文件（可选）" : "选择模板文件"}
               onChange={(e) => {
                 selectFile(e.target.files?.[0]);
                 e.target.value = "";
@@ -628,8 +686,8 @@ function TemplateEditor({
               {file
                 ? `${(file.size / 1024 / 1024).toFixed(2)} MB · 点击文件名重新选择`
                 : template
-                  ? "可保留原文件 · 仅支持 DOCX，最大 8 MB"
-                  : "仅支持 DOCX 格式 · 最大 8 MB"}
+                  ? "可保留原文件 · 支持 HTML / DOCX，最大 8 MB"
+                  : "支持 HTML / DOCX 格式 · 最大 8 MB"}
             </p>
           </div>
           <label className="editor-field" htmlFor="template-name">
