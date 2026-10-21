@@ -31,11 +31,13 @@ labels = current["Config"]["Labels"]
 working_dir = labels["com.docker.compose.project.working_dir"]
 environment = dict(os.environ)
 environment["CADDY_IP"] = caddy["NetworkSettings"]["Networks"]["bojian_frontend"]["IPAddress"]
-environment["ENV_FILE"] = labels["com.docker.compose.project.environment_file"]
-compose = [
-    "docker", "compose", "--env-file", environment["ENV_FILE"],
-    "-p", labels["com.docker.compose.project"],
-]
+environment_files = [name for name in labels["com.docker.compose.project.environment_file"].split(",") if name]
+if not environment_files:
+    raise SystemExit("Missing production environment file")
+environment["ENV_FILE"] = environment_files[0]
+compose = ["docker", "compose", "-p", labels["com.docker.compose.project"]]
+for filename in environment_files:
+    compose += ["--env-file", filename]
 for filename in labels["com.docker.compose.project.config_files"].split(","):
     compose += ["-f", filename]
 
