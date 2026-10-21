@@ -145,11 +145,12 @@ body {
   gap: 10px;
   align-items: center;
 }
-.header-actions .download-menu {
+.header-actions .download-action {
   position: static;
   display: none;
 }
-body:has(.minimal-home) .download-menu {
+body:has(.minimal-home) .download-action,
+body:has(.console-page) .download-action {
   display: block;
 }
 .login-entry,
@@ -175,7 +176,6 @@ body:has(.minimal-home) .download-menu {
     border-color 160ms,
     transform 160ms;
 }
-.landing-download::-webkit-details-marker,
 .account-menu > summary::-webkit-details-marker {
   display: none;
 }
@@ -195,7 +195,6 @@ body:has(.minimal-home) .download-menu {
 }
 .landing-download:hover,
 .account-menu > summary:hover,
-.download-menu[open] > summary,
 .account-menu[open] > summary {
   background: #f5f7fa;
   border-color: #c7ced9;
@@ -246,7 +245,6 @@ body:has(.minimal-home) .download-menu {
 .account-menu[open] .account-caret svg {
   transform: rotate(180deg);
 }
-.download-popover,
 .account-popover {
   position: absolute;
   right: 0;
@@ -262,51 +260,37 @@ body:has(.minimal-home) .download-menu {
     0 3px 10px #17233b05;
   animation: header-menu-in 160ms ease-out;
 }
-.download-popover {
-  width: 300px;
-}
 .account-popover {
   width: 210px;
   padding: 8px;
 }
-.download-popover-heading {
+.notification-region {
+  position: fixed;
+  top: max(24px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  max-width: calc(100vw - 32px);
+  pointer-events: none;
+}
+.download-notification {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.download-popover-icon {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
+  gap: 9px;
+  padding: 13px 20px;
+  border: 1px solid #e5e8ee;
   border-radius: 12px;
-  background: #edf2ff;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 8px 30px #17233b1a;
+  font-size: 14px;
+  line-height: 20px;
+  pointer-events: none;
+}
+.download-notification svg {
+  width: 18px;
+  height: 18px;
   color: var(--blue);
-}
-.download-popover strong {
-  display: block;
-  font-size: 15px;
-  font-weight: 600;
-}
-.download-availability {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 5px;
-  font-size: 12px;
-  color: #646e7e;
-}
-.download-availability i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #b48a45;
-}
-.download-popover p {
-  margin-top: 18px;
-  color: #646e7e;
-  font-size: 13px;
-  line-height: 1.8;
 }
 .account-popover > button {
   display: flex;
@@ -345,89 +329,80 @@ body:has(.minimal-home) .download-menu {
     transform: translateY(0);
   }
 }
+/* The home photograph extends behind the shared header and footer. */
 .minimal-home {
-  position: relative;
   flex: 1;
-  min-height: 0;
   display: grid;
   place-items: center;
-  width: calc(100% - var(--shell-gutter) * 2);
-  margin-inline: auto;
-  border-block: 1px solid #eceef3;
-  isolation: isolate;
-  overflow: clip;
+  padding: 48px var(--shell-gutter);
+  color: #fff;
 }
-.minimal-home::before {
-  content: "";
-  position: absolute;
+.landscape-background {
+  position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(
-    ellipse at 50% 100%,
-    #edf2ff 0,
-    #f8faff 34%,
-    #ffffff00 66%
+  background: #16424b;
+}
+.landscape-image {
+  object-fit: cover;
+  object-position: center 52%;
+}
+.landscape-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #06263366,
+    #06263326 30%,
+    #06263340 65%,
+    #062633a6
   );
 }
 .brand-stage {
-  padding: 40px 16px 52px;
   text-align: center;
 }
-.brand-eyebrow {
-  font-size: 12px;
-  line-height: 1.8;
-  letter-spacing: 0.18em;
-  color: #747d8b;
-  margin-bottom: 24px;
-}
 .brand-title {
-  position: relative;
-  width: fit-content;
-  margin-inline: auto;
-  font-size: clamp(100px, 12vw, 176px);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: 0.08em;
-  text-indent: 0.08em;
-  color: #252c38;
-}
-.brand-title::after {
-  content: "";
-  position: absolute;
-  right: -0.13em;
-  bottom: 0.22em;
-  width: 0.07em;
-  height: 0.07em;
-  border-radius: 2px;
-  background: var(--blue);
-}
-.brand-statement {
-  margin-top: 24px;
-  font-size: clamp(17px, 1.8vw, 24px);
-  font-weight: 400;
-  letter-spacing: 0.08em;
-  line-height: 1.8;
-  color: #566173;
-}
-.brand-topics {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 26px;
-  margin-top: 48px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  line-height: 1.8;
-  color: #6c788d;
-}
-.brand-topics > span + span {
-  border-left: 1px solid #cfd6e2;
-  padding-left: 26px;
+  font-size: clamp(32px, 4.2vw, 64px);
+  font-weight: 550;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-wrap: balance;
+  text-shadow: 0 3px 24px #082b4080;
 }
 body:has(.minimal-home) {
-  height: 100svh;
-  min-height: 0;
+  min-height: 100dvh;
+}
+body:has(.minimal-home) .site-header,
+body:has(.minimal-home) .site-footer {
+  background: transparent;
+  border: 0;
+}
+body:has(.minimal-home) .brand > span,
+body:has(.minimal-home) .footer-bottom {
+  color: #fff;
+  text-shadow: 0 1px 8px #082b4080;
+}
+body:has(.minimal-home) .landing-download,
+body:has(.minimal-home) .login-entry,
+body:has(.minimal-home) .account-menu > summary {
+  color: #fff;
+  background: #06263333;
+  border-color: #ffffff80;
+  backdrop-filter: blur(8px);
+}
+body:has(.minimal-home) .landing-download:hover,
+body:has(.minimal-home) .login-entry:hover,
+body:has(.minimal-home) .account-menu > summary:hover,
+body:has(.minimal-home) .account-menu[open] > summary {
+  background: #06263366;
+  border-color: #fff;
+}
+body:has(.minimal-home) :is(a, button, summary):focus-visible {
+  outline-color: #fff;
+}
+body:has(.minimal-home) .account-popover :focus-visible {
+  outline-color: var(--blue);
 }
 .site-footer.wrap {
   width: calc(100% - var(--shell-gutter) * 2);
@@ -441,9 +416,9 @@ body:has(.minimal-home) {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 24px;
-  color: #727b89;
+  color: #596579;
 }
 .footer-bottom > div {
   display: flex;
@@ -840,27 +815,12 @@ body:has(.login-page) .login-entry {
   .account-menu > summary {
     padding-inline: 10px;
   }
-  .brand-stage {
-    padding: 28px 8px 40px;
-  }
-  .brand-eyebrow {
-    font-size: 11px;
-    margin-bottom: 24px;
+  .landscape-image {
+    object-position: 48% center;
   }
   .brand-title {
-    font-size: clamp(88px, 25vw, 132px);
-  }
-  .brand-statement {
-    margin-top: 22px;
-    font-size: 16px;
-  }
-  .brand-topics {
-    gap: 17px;
-    margin-top: 36px;
-    font-size: 10px;
-  }
-  .brand-topics > span + span {
-    padding-left: 17px;
+    max-width: 12em;
+    font-size: 32px;
   }
   .site-footer.wrap {
     padding-block: 18px;
@@ -868,7 +828,7 @@ body:has(.login-page) .login-entry {
   .footer-bottom {
     flex-direction: column;
     gap: 4px;
-    font-size: 10px;
+    font-size: 11px;
     line-height: 24px;
   }
   .footer-bottom > div {
@@ -927,7 +887,7 @@ body:has(.login-page) .login-entry {
   }
   .footer-bottom > div {
     gap: 12px;
-    font-size: 9px;
+    font-size: 10px;
   }
   .login-card {
     padding-inline: 18px;
@@ -937,23 +897,6 @@ body:has(.login-page) .login-entry {
   }
   .login-consent {
     font-size: 10px;
-  }
-}
-@media (max-height: 700px) {
-  .brand-stage {
-    padding: 20px 8px;
-  }
-  .brand-eyebrow {
-    margin-bottom: 12px;
-  }
-  .brand-title {
-    font-size: clamp(72px, 17svh, 112px);
-  }
-  .brand-statement {
-    margin-top: 16px;
-  }
-  .brand-topics {
-    margin-top: 24px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -992,14 +935,6 @@ body:has(.login-page) .login-entry {
 }
 body:has(.console-page) {
   background: #f7f8fb;
-}
-body:has(.console-page) .site-header {
-  background: #ffffffd9;
-  border-bottom: 1px solid #e9edf3;
-}
-body:has(.console-page) .header-inner {
-  width: min(1320px, calc(100% - 80px));
-  height: 88px;
 }
 body:has(.console-page) .site-footer {
   padding-block: 30px;
@@ -1842,10 +1777,6 @@ body:has(.console-page) .site-footer {
   gap: 8px;
 }
 @media (max-width: 760px) {
-  body:has(.console-page) .header-inner {
-    width: calc(100% - 40px);
-    height: 76px;
-  }
   .console-page {
     padding: 25px 20px;
   }

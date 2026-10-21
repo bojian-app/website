@@ -1,0 +1,18 @@
+services:
+  website:
+    image: ${WEBSITE_IMAGE:?Set WEBSITE_IMAGE to the release image}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt: !override
+      - no-new-privileges:true
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      BOJIAN_APP_AUTH_ORIGIN: https://bojian.kelance.cn
+      BOJIAN_WEBSITE_ORIGIN: https://bojian.kelance.cn
+    tmpfs: !override
+      - /tmp:size=64m,mode=1777
+      - /app/.next/cache:size=128m,uid=1001,gid=1001,mode=0700
+    stop_grace_period: 30s

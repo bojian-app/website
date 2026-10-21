@@ -3,7 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { AuthProvider } from "@/components/auth-provider";
 import { AccountButton } from "@/components/account-button";
-import { DownloadMenu } from "@/components/download-menu";
+import {
+  DownloadMenu,
+  DownloadNoticeProvider,
+} from "@/components/download-menu";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,43 +35,45 @@ export default function RootLayout({
     <html lang="zh-CN" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
         <AuthProvider>
-          <a className="skip-link" href="#main">
-            跳转到正文
-          </a>
-          <header className="site-header">
-            <div className="header-inner">
-              <Link className="brand" href="/" aria-label="博简首页">
-                <Image
-                  src="/brand/app-icon.png"
-                  width={38}
-                  height={38}
-                  alt=""
-                />
-                <span>博简</span>
-              </Link>
-              <div className="header-actions landing-actions">
-                <DownloadMenu />
-                <AccountButton />
+          <DownloadNoticeProvider>
+            <a className="skip-link" href="#main">
+              跳转到正文
+            </a>
+            <header className="site-header">
+              <div className="header-inner">
+                <Link className="brand" href="/" aria-label="博简首页">
+                  <Image
+                    src="/brand/app-icon.png"
+                    width={38}
+                    height={38}
+                    alt=""
+                  />
+                  <span>博简</span>
+                </Link>
+                <div className="header-actions landing-actions">
+                  <DownloadMenu />
+                  <AccountButton />
+                </div>
               </div>
-            </div>
-          </header>
-          {children}
-          <footer className="site-footer wrap">
-            <div className="footer-bottom">
-              <span>© {new Date().getFullYear()} 博简</span>
-              <div>
-                <Link href="/privacy">隐私政策</Link>
-                <Link href="/terms">用户协议</Link>
-                <a
-                  href="https://beian.miit.gov.cn/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  粤ICP备2026155383号
-                </a>
+            </header>
+            {children}
+            <footer className="site-footer wrap">
+              <div className="footer-bottom">
+                <span>© {new Date().getFullYear()} 博简</span>
+                <div>
+                  <Link href="/privacy">隐私政策</Link>
+                  <Link href="/terms">用户协议</Link>
+                  <a
+                    href="https://beian.miit.gov.cn/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    粤ICP备2026155383号
+                  </a>
+                </div>
               </div>
-            </div>
-          </footer>
+            </footer>
+          </DownloadNoticeProvider>
         </AuthProvider>
       </body>
     </html>

@@ -1,5 +1,15 @@
 "use client";
-import { useDismissibleDetails } from "./use-dismissible-details";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+
+const DownloadNotice = createContext<() => void>(() => {});
 
 function DownloadIcon() {
   return (
@@ -15,28 +25,66 @@ function DownloadIcon() {
   );
 }
 
-export function DownloadMenu() {
-  const menu = useDismissibleDetails();
+export function DownloadNoticeProvider({ children }: { children: ReactNode }) {
+  const [visible, setVisible] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setVisible(false);
+    };
+    document.addEventListener("keydown", dismiss);
+    return () => {
+      document.removeEventListener("keydown", dismiss);
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+  const notify = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    setVisible(true);
+    timer.current = setTimeout(() => setVisible(false), 3000);
+  }, []);
   return (
-    <details className="download-menu" name="header-menu" ref={menu}>
-      <summary className="landing-download">
+    <DownloadNotice.Provider value={notify}>
+      {children}
+      <div
+        className="notification-region"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {visible && (
+          <div className="download-notification">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path
+                d="M10 9v5m0-8v.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            暂未上线
+          </div>
+        )}
+      </div>
+    </DownloadNotice.Provider>
+  );
+}
+
+export function DownloadMenu() {
+  const notify = useContext(DownloadNotice);
+  return (
+    <div className="download-action">
+      <button type="button" className="landing-download" onClick={notify}>
         <DownloadIcon />
         <span>下载 App</span>
-      </summary>
-      <div className="download-popover">
-        <div className="download-popover-heading">
-          <span className="download-popover-icon">
-            <DownloadIcon />
-          </span>
-          <div>
-            <strong>博简 App</strong>
-            <span className="download-availability">
-              <i /> 即将开放下载
-            </span>
-          </div>
-        </div>
-        <p>App 暂未上架，开放后会在这里更新下载入口。</p>
-      </div>
-    </details>
+      </button>
+    </div>
   );
 }

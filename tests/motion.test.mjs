@@ -65,7 +65,7 @@ after(async () => {
   }
 });
 
-test("纯排版首页不加载旧背景，品牌可见且页面底色为白色", async () => {
+test("山湖首页加载指定背景，主文案可见且不加载旧建筑图", async () => {
   const page = await browser.newPage();
   const errors = [];
   const backgroundRequests = [];
@@ -76,11 +76,17 @@ test("纯排版首页不加载旧背景，品牌可见且页面底色为白色",
   });
   try {
     await page.goto(base, { waitUntil: "networkidle" });
-    assert.equal(await page.locator(".site-background").count(), 0);
+    const background = page.locator(".landscape-image");
+    assert(
+      await background.evaluate(
+        (image) => image.complete && image.naturalWidth > 0,
+      ),
+    );
+    assert((await background.getAttribute("src")).includes("moraine-lake"));
     assert.deepEqual(backgroundRequests, []);
     assert.equal(
       await page.getByRole("heading", { level: 1 }).innerText(),
-      "博简",
+      "把经历，写成新的可能。",
     );
     assert.equal(
       await page
@@ -90,13 +96,22 @@ test("纯排版首页不加载旧背景，品牌可见且页面底色为白色",
     );
     assert(!/bojian/i.test(await page.locator("body").innerText()));
     assert.equal(await page.locator(".sphere-body").count(), 0);
+    assert.equal(await page.locator("main button, main a, main p").count(), 0);
+    assert.equal(
+      await page.getByRole("button", { name: "下载 App" }).count(),
+      1,
+    );
+    assert.equal(
+      await page.getByRole("link", { name: "登录博简", exact: true }).count(),
+      1,
+    );
     assert.deepEqual(errors, []);
   } finally {
     await page.close();
   }
 });
 
-test("各种尺寸品牌排版完整显示，登录与下载入口保持单屏", async () => {
+test("各种尺寸背景铺满视口，仅顶部保留操作入口", async () => {
   for (const viewport of [
     { width: 320, height: 568 },
     { width: 390, height: 844 },
@@ -108,15 +123,34 @@ test("各种尺寸品牌排版完整显示，登录与下载入口保持单屏",
     try {
       await page.goto(base, { waitUntil: "networkidle" });
       const fits = await page.evaluate(
-        () =>
-          document.documentElement.scrollHeight <= innerHeight &&
-          document.documentElement.scrollWidth <= innerWidth,
+        () => document.documentElement.scrollWidth <= innerWidth,
       );
       assert(
         fits,
-        `Homepage must fit one viewport at ${viewport.width}x${viewport.height}`,
+        `Homepage must not overflow horizontally at ${viewport.width}x${viewport.height}`,
       );
-      assert.equal(await page.locator("main section, main h2").count(), 0);
+      const background = await page
+        .locator(".landscape-background")
+        .boundingBox();
+      assert.deepEqual(background, {
+        x: 0,
+        y: 0,
+        width: viewport.width,
+        height: viewport.height,
+      });
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollHeight <= innerHeight,
+        ),
+      );
+      for (const selector of [".site-header", ".site-footer"]) {
+        assert.equal(
+          await page
+            .locator(selector)
+            .evaluate((el) => getComputedStyle(el).backgroundColor),
+          "rgba(0, 0, 0, 0)",
+        );
+      }
       const hero = await page.locator(".brand-stage").boundingBox();
       const main = await page.locator("main").boundingBox();
       assert(hero.x >= main.x && hero.x + hero.width <= main.x + main.width);
@@ -126,10 +160,14 @@ test("各种尺寸品牌排版完整显示，登录与下载入口保持单屏",
           .getByText("把经历，写成新的可能。", { exact: true })
           .isVisible(),
       );
-      const login = page.getByRole("link", { name: "登录博简", exact: true });
+      const login = page
+        .locator("header")
+        .getByRole("link", { name: "登录博简", exact: true });
       assert(await login.isVisible());
       assert.equal(await login.getAttribute("href"), "/login");
-      const download = page.locator(".download-menu > summary");
+      const download = page
+        .locator("header")
+        .getByRole("button", { name: "下载 App" });
       assert(await download.isVisible());
       const downloadBounds = await download.boundingBox();
       const loginBounds = await login.boundingBox();
@@ -138,16 +176,14 @@ test("各种尺寸品牌排版完整显示，登录与下载入口保持单屏",
         "Download must be left of login",
       );
       await download.click();
-      await page.getByText("即将开放下载", { exact: true }).waitFor();
-      const popover = await page.locator(".download-popover").boundingBox();
+      await page.getByRole("status").filter({ hasText: "暂未上线" }).waitFor();
+      const notification = await page.getByRole("status").boundingBox();
       assert(
-        popover.x >= 12 && popover.x + popover.width <= viewport.width - 12,
+        notification.x >= 12 &&
+          notification.x + notification.width <= viewport.width - 12,
       );
       await page.keyboard.press("Escape");
-      assert.equal(
-        await page.locator(".download-menu").getAttribute("open"),
-        null,
-      );
+      await page.getByRole("status").waitFor({ state: "hidden" });
       const actionBounds = await page.locator(".landing-actions").boundingBox();
       assert(
         actionBounds.y >= 0 &&
@@ -164,28 +200,36 @@ test("各种尺寸品牌排版完整显示，登录与下载入口保持单屏",
   }
 });
 
-test("下载状态支持键盘、外部点击和Esc关闭", async () => {
+test("下载通知支持键盘、Esc关闭、自动消失和重复点击计时", async () => {
   const page = await browser.newPage();
   try {
     await page.goto(base, { waitUntil: "networkidle" });
-    const trigger = page.locator(".download-menu > summary");
+    const trigger = page
+      .locator("header")
+      .getByRole("button", { name: "下载 App" });
+    const notification = page.getByRole("status");
     await trigger.focus();
     await page.keyboard.press("Enter");
-    await page.getByText("即将开放下载", { exact: true }).waitFor();
-    await page.keyboard.press("Escape");
-    assert.equal(
-      await page.locator(".download-menu").getAttribute("open"),
-      null,
-    );
+    await notification.waitFor();
+    assert.equal(await notification.innerText(), "暂未上线");
+    assert.equal(await page.locator(".download-popover").count(), 0);
     assert(
       await trigger.evaluate((element) => document.activeElement === element),
     );
+    await page.keyboard.press("Escape");
+    await notification.waitFor({ state: "hidden" });
+    await page.clock.install();
     await trigger.click();
-    await page.locator("main").click({ position: { x: 300, y: 300 } });
-    assert.equal(
-      await page.locator(".download-menu").getAttribute("open"),
-      null,
-    );
+    await page.clock.fastForward(2000);
+    await page
+      .locator("header")
+      .getByRole("button", { name: "下载 App" })
+      .click();
+    assert.equal(await notification.count(), 1);
+    await page.clock.fastForward(2000);
+    assert(await notification.isVisible());
+    await page.clock.fastForward(1100);
+    await notification.waitFor({ state: "hidden" });
   } finally {
     await page.close();
   }
@@ -199,10 +243,17 @@ test("减少动态效果与页面往返保持可操作，不残留重复场景",
     assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
     assert(
       await page
-        .getByRole("heading", { level: 1, name: "博简", exact: true })
+        .getByRole("heading", {
+          level: 1,
+          name: "把经历，写成新的可能。",
+          exact: true,
+        })
         .isVisible(),
     );
-    await page.getByRole("link", { name: "登录博简", exact: true }).click();
+    await page
+      .locator("header")
+      .getByRole("link", { name: "登录博简", exact: true })
+      .click();
     await page.waitForURL(base + "/login");
     await page.locator(".login-back").click();
     await page.waitForURL(base + "/");
@@ -214,6 +265,7 @@ test("减少动态效果与页面往返保持可操作，不残留重复场景",
     assert.equal(await page.locator(".brand-stage").count(), 1);
     assert(
       await page
+        .locator("header")
         .getByRole("link", { name: "登录博简", exact: true })
         .isVisible(),
     );
@@ -228,7 +280,10 @@ test("关闭JavaScript仍能打开登录页与法律文件", async () => {
     const page = await context.newPage();
     await page.goto(base);
     assert(await page.getByRole("heading", { level: 1 }).isVisible());
-    await page.getByRole("link", { name: "登录博简", exact: true }).click();
+    await page
+      .locator("header")
+      .getByRole("link", { name: "登录博简", exact: true })
+      .click();
     await page.waitForURL(base + "/login");
     assert(await page.getByRole("checkbox").isVisible());
     await page.locator(".login-back").click();

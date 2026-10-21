@@ -38,4 +38,18 @@
 
 图片按原始下载结果存储，无生成或重绘；页面以白色为底降低其显示透明度。候选雪景与白色建筑摄影仅保存在 `artifacts/background-candidates/`，不作为当前页面背景。
 
-用户随后要求移除该图片。当前首页与登录页均不再引用或预加载它，使用 HTML 文字和 CSS 表面完成设计；本条仅保留素材来源记录。
+用户随后要求移除该图片。当前首页与登录页均不再引用或预加载这张建筑照片；本条仅保留历史素材来源记录。
+
+## 梦莲湖背景（2026-10-21，当前首页）
+
+用户提供即时出行设计参考，要求使用截图里的同一张山湖照片。对照山峰、树林、船只和湖面倒影后，确认来自 James Wheeler 的 Pexels 摄影作品 #417074。
+
+- 作者：James Wheeler。
+- 作品页：https://www.pexels.com/photo/lake-and-mountain-417074/
+- 参考设计来源：https://js.design/special/article/lead-page-design.html
+- 原始照片：https://images.pexels.com/photos/417074/pexels-photo-417074.jpeg
+- 许可：https://www.pexels.com/license/ （允许免费用于网站，不强制署名）。
+- 正式资产：`public/backgrounds/moraine-lake.jpg`，从 Pexels CDN 获取 2560px 宽网页版本，Next.js 按屏幕优化；没有生成或重绘照片。深色遮罩在 CSS 中实现，原始照片内容未修改。
+- 本地完整原图：`artifacts/lake-reference/moraine-lake-original.jpg`。
+
+首页使用山湖照片铺满整个视口，叠加博简品牌、一句主标题及公共导航。用户要求精简后，已移除青绿色侧栏、功能介绍和重复操作入口。

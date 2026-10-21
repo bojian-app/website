@@ -729,10 +729,13 @@ test("真实浏览器：仅 App 方式、扫码确认、持久登录、退出、
   await page.keyboard.press("Escape");
   assert.equal(await page.locator(".account-menu").getAttribute("open"), null);
   await page.locator(".account-menu summary").click();
-  await page.locator(".download-menu > summary").click();
+  await page
+    .locator(".site-header")
+    .getByRole("button", { name: "下载 App" })
+    .click();
   assert.equal(await page.locator(".account-menu").getAttribute("open"), null);
   await page.locator(".account-menu summary").click();
-  assert.equal(await page.locator(".download-menu").getAttribute("open"), null);
+  assert.equal(await page.getByRole("status").innerText(), "暂未上线");
   await page.getByRole("button", { name: /退出登录/ }).click();
   await page.locator(".account-menu").waitFor({ state: "hidden" });
   await page.goto(base + "/login");
@@ -1162,6 +1165,7 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
     errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(base + "/");
+  const homeHeader = await page.locator(".header-inner").boundingBox();
   await page.locator(".account-menu summary").click();
   const menuText = await page.locator(".account-popover").innerText();
   assert(menuText.indexOf("控制台") < menuText.indexOf("退出登录"));
@@ -1169,6 +1173,22 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   await page.waitForURL(base + "/console");
   await page.getByRole("heading", { name: "我的简历模板" }).waitFor();
   await page.getByRole("button", { name: "上传第一份模板" }).waitFor();
+  assert.deepEqual(
+    await page.locator(".header-inner").boundingBox(),
+    homeHeader,
+  );
+  assert(
+    await page
+      .locator(".site-header")
+      .getByRole("button", { name: "下载 App" })
+      .isVisible(),
+  );
+  assert.equal(
+    await page
+      .locator(".site-header")
+      .evaluate((el) => getComputedStyle(el).backgroundColor),
+    "rgb(255, 255, 255)",
+  );
   await page.screenshot({
     path: "artifacts/console-1440-empty.png",
     fullPage: true,
