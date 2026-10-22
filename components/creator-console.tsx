@@ -23,61 +23,34 @@ import {
 } from "@/lib/creator-types";
 
 function TemplatePreview({ id, version }: { id: string; version: number }) {
-  const [preview, setPreview] = useState<{
-    status: string;
-    preview_pdf_url?: string;
-    thumbnail_url?: string;
-  } | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  async function load() {
-    if (loading) return;
-    setLoading(true);
-    setError("");
-    try {
-      setPreview(
-        await creatorRequest(`templates/${id}/preview?version=${version}`),
-      );
-    } catch (error) {
-      setError(message(error));
-    } finally {
-      setLoading(false);
-    }
-  }
   return (
-    <div>
-      <button
-        className="console-button quiet"
-        disabled={loading}
-        onClick={() => void load()}
-      >
-        {loading ? "正在读取…" : "查看预览"}
-      </button>
-      {error && <p role="alert">{error}</p>}
-      {preview?.status === "READY" && (
-        <a
-          href={preview.preview_pdf_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="console-button quiet"
-        >
-          打开完整 PDF 预览 ↗
-        </a>
-      )}
-      {preview && preview.status !== "READY" && (
-        <p>
-          {preview.status === "FAILED"
-            ? "预览生成失败，请修正源文件后重新上传。"
-            : "预览正在准备，请稍后重试。"}
-        </p>
-      )}
-    </div>
+    <a
+      href={`/web-api/auth/creator/templates/${id}/preview/pdf?version=${version}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="console-button preview"
+    >
+      <Icon kind="eye" />
+      查看预览
+    </a>
   );
 }
+
 function Icon({
   kind = "document",
 }: {
-  kind?: "document" | "upload" | "plus" | "arrow" | "refresh" | "close";
+  kind?:
+    | "document"
+    | "upload"
+    | "plus"
+    | "arrow"
+    | "refresh"
+    | "close"
+    | "grid"
+    | "book"
+    | "check"
+    | "clock"
+    | "eye";
 }) {
   const paths = {
     document:
@@ -88,6 +61,11 @@ function Icon({
     refresh:
       "M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1",
     close: "m6 6 12 12M6 18 18 6",
+    grid: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
+    book: "M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1Z",
+    check: "m8 12 3 3 5-6M12 2l8 4v6c0 5-8 10-8 10S4 17 4 12V6l8-4Z",
+    clock: "M12 8v5l3 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z",
+    eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
   };
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -115,6 +93,8 @@ const filters = [
   { id: "SUBMITTED", label: "审核中" },
   { id: "PUBLISHED", label: "已上架" },
   { id: "REJECTED", label: "需修改" },
+  { id: "UNPUBLISH_REQUESTED", label: "下架审核中" },
+  { id: "UNPUBLISHED", label: "已下架" },
 ];
 function message(error: unknown) {
   return error instanceof Error ? error.message : "操作失败，请稍后重试。";
@@ -198,8 +178,23 @@ function Workspace() {
       operation.current?.abort();
     };
   }, [load]);
-  async function submit(template: CreatorTemplate) {
-    if (operation.current || loading || !data?.verified) return;
+  async function mutateTemplate(
+    template: CreatorTemplate,
+    action: "submit" | "unpublish",
+  ) {
+    if (
+      operation.current ||
+      loading ||
+      (action === "submit" && !data?.verified)
+    )
+      return;
+    if (
+      action === "unpublish" &&
+      !window.confirm(
+        `确认申请下架「${template.name}」？提交后将进入下架审核。`,
+      )
+    )
+      return;
     const controller = new AbortController();
     operation.current = controller;
     setBusy(template.id);
@@ -207,12 +202,16 @@ function Workspace() {
     setNotice("");
     try {
       await creatorRequest(
-        `templates/${template.id}/submit`,
-        { resubmit: template.status === "REJECTED" },
+        `templates/${template.id}/${action}`,
+        action === "submit" ? { resubmit: template.status === "REJECTED" } : {},
         controller.signal,
       );
       if (!controller.signal.aborted) {
-        setNotice(`「${template.name}」已提交审核，通过后将上架。`);
+        setNotice(
+          action === "unpublish"
+            ? `「${template.name}」已申请下架，等待平台审核。`
+            : `「${template.name}」已提交审核，通过后将上架。`,
+        );
         await load();
       }
     } catch (error) {
@@ -228,262 +227,405 @@ function Workspace() {
   }
   const items = data?.items || [],
     visible = items.filter((t) => filter === "ALL" || t.status === filter);
+  const published = items.filter(
+    (template) => template.status === "PUBLISHED",
+  ).length;
   return (
-    <div className="console-shell">
-      <div className="console-breadcrumb">
-        <Link href="/">博简</Link>
-        <span>/</span>
-        <span>创作者控制台</span>
-      </div>
-      <header className="console-heading">
-        <div>
-          <span className="console-eyebrow">创作 · 分享</span>
-          <h1>
-            我的简历模板<span className="console-heading-dot">.</span>
-          </h1>
-          <p>把你的设计，带给更多正在出发的人。</p>
-        </div>
-        <button
-          className="console-button primary"
-          onClick={() => setEditor({})}
-          disabled={Boolean(busy)}
-        >
-          <Icon kind="plus" />
-          上传模板
-        </button>
-      </header>
-      <div className="console-overview" aria-label="模板概览">
-        {[
-          {
-            label: "全部模板",
-            value: items.length,
-            caption: "每一份创作，都在这里",
-          },
-          {
-            label: "已上架",
-            value: items.filter((t) => t.status === "PUBLISHED").length,
-            caption: "已经与大家见面",
-          },
-          {
-            label: "审核中",
-            value: items.filter((t) => t.status === "SUBMITTED").length,
-            caption: "好作品，值得期待",
-          },
-        ].map((stat, i) => (
-          <div className="console-stat" key={stat.label}>
-            <span>{stat.label}</span>
-            <strong>{data ? String(stat.value).padStart(2, "0") : "—"}</strong>
-            <p>{stat.caption}</p>
-            <span className="console-stat-index" aria-hidden="true">
-              0{i + 1}
-            </span>
-          </div>
-        ))}
-      </div>
-      {data && (
-        <div
-          className={`console-verification ${data.verified ? "verified" : ""}`}
-        >
-          <span className="console-verification-mark" aria-hidden="true">
-            {data.verified ? "✓" : "i"}
-          </span>
-          <p>
-            {data.verified
-              ? "已完成实名认证，可以提交模板上架审核。"
-              : "上架前，请先在博简 App 完成实名认证。现在也可以上传并保存草稿。"}
-          </p>
-          <button
-            onClick={() => void load()}
-            disabled={loading || Boolean(busy)}
+    <div className="console-shell console-workspace">
+      <div className="console-dashboard">
+        <aside className="console-left-stack">
+          <section
+            className="console-panel console-overview-panel"
+            aria-label="模板概览"
           >
-            <Icon kind="refresh" />
-            {loading ? "更新中…" : "刷新状态"}
-          </button>
-        </div>
-      )}
-      {notice && (
-        <p className="console-notice" role="status">
-          ✓ {notice}
-        </p>
-      )}
-      {error && (
-        <div className="console-error" role="alert">
-          <p>{error}</p>
-          <button
-            onClick={() => void load()}
-            disabled={loading || Boolean(busy)}
-          >
-            刷新列表
-          </button>
-        </div>
-      )}
-      <section
-        className="console-library"
-        aria-labelledby="library-heading"
-        aria-busy={loading}
-      >
-        <h2 className="sr-only" id="library-heading">
-          模板管理
-        </h2>
-        <div className="console-library-toolbar">
-          <div className="console-filters" aria-label="按模板状态筛选">
-            {filters.map((tab) => (
+            <div className="console-panel-heading">
+              <h2>作品概览</h2>
+              <span className="console-panel-icon">
+                <Icon kind="grid" />
+              </span>
+            </div>
+            <div className="console-total">
+              <strong>{data ? items.length : "—"}</strong>
+              <span>份模板</span>
+            </div>
+            <p className="console-overview-caption">你的创作，都在这里。</p>
+            <div className="console-stat-grid">
+              <div>
+                <span>已上架</span>
+                <strong>{data ? published : "—"}</strong>
+              </div>
+              <div>
+                <span>草稿</span>
+                <strong>
+                  {data
+                    ? items.filter((t) => t.status === "DRAFT").length
+                    : "—"}
+                </strong>
+              </div>
+              <div>
+                <span>审核中</span>
+                <strong>
+                  {data
+                    ? items.filter((t) => t.status === "SUBMITTED").length
+                    : "—"}
+                </strong>
+              </div>
+            </div>
+            <button
+              className="console-button primary"
+              onClick={() => setEditor({})}
+              disabled={Boolean(busy)}
+            >
+              <Icon kind="plus" />
+              上传模板
+            </button>
+            <div className="console-progress-caption">
+              <span>上架占比</span>
+              <strong>
+                {data && items.length
+                  ? Math.round((published / items.length) * 100)
+                  : 0}
+                %
+              </strong>
+            </div>
+            <div className="console-progress" aria-hidden="true">
+              <span
+                style={{
+                  width: `${items.length ? (published / items.length) * 100 : 0}%`,
+                }}
+              />
+            </div>
+          </section>
+          <section className="console-panel console-publish-panel">
+            <div className="console-panel-heading">
+              <h2>从草稿到上架</h2>
+              <Icon kind="arrow" />
+            </div>
+            <ol>
+              <li>
+                <span>1</span>
+                <div>
+                  <strong>上传源文件</strong>
+                  <p>HTML 或 DOCX，最大 8 MB</p>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <strong>检查预览效果</strong>
+                  <p>确认排版与模板字段</p>
+                </div>
+              </li>
+              <li>
+                <span>3</span>
+                <div>
+                  <strong>提交上架审核</strong>
+                  <p>审核通过后在 App 发布</p>
+                </div>
+              </li>
+            </ol>
+            <Link href="/console/template-guide">
+              查看制作要求
+              <Icon kind="arrow" />
+            </Link>
+          </section>
+        </aside>
+        <div className="console-center">
+          {notice && (
+            <p className="console-notice" role="status">
+              ✓ {notice}
+            </p>
+          )}
+          {error && (
+            <div className="console-error" role="alert">
+              <p>{error}</p>
               <button
-                key={tab.id}
-                aria-pressed={filter === tab.id}
-                onClick={() => setFilter(tab.id)}
+                onClick={() => void load()}
+                disabled={loading || Boolean(busy)}
               >
-                {tab.label}
-                {tab.id === "ALL" && data && <span>{items.length}</span>}
+                刷新列表
+              </button>
+            </div>
+          )}
+          <section
+            className="console-panel console-library"
+            aria-labelledby="library-heading"
+            aria-busy={loading}
+          >
+            <div className="console-library-heading">
+              <h1 id="library-heading">模板库</h1>
+              <span>
+                {data ? `${visible.length} / ${items.length} 份` : "正在读取…"}
+              </span>
+              <button
+                className="console-icon-button"
+                aria-label="刷新模板列表"
+                disabled={loading || Boolean(busy)}
+                onClick={() => void load()}
+              >
+                <Icon kind="refresh" />
+              </button>
+            </div>
+            <div className="console-library-toolbar">
+              <div className="console-filters" aria-label="按模板状态筛选">
+                {filters.map((tab) => (
+                  <button
+                    key={tab.id}
+                    aria-pressed={filter === tab.id}
+                    onClick={() => setFilter(tab.id)}
+                  >
+                    {tab.label}
+                    {data && (
+                      <span>
+                        {tab.id === "ALL"
+                          ? items.length
+                          : items.filter((t) => t.status === tab.id).length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {loading && !data ? (
+              <div className="console-empty" role="status">
+                <span className="console-loader" />
+                <p>正在读取你的模板…</p>
+              </div>
+            ) : !data ? (
+              <div className="console-empty">
+                <Icon />
+                <h3>暂时无法读取模板</h3>
+                <p>请检查网络后刷新列表。</p>
+                <button
+                  className="console-button secondary"
+                  onClick={() => void load()}
+                >
+                  重新加载
+                </button>
+              </div>
+            ) : visible.length === 0 ? (
+              <div className="console-empty">
+                <span className="console-empty-symbol" aria-hidden="true">
+                  <Icon kind="document" />
+                </span>
+                <h3>
+                  {items.length ? "这里暂时还没有模板" : "上传你的第一份模板"}
+                </h3>
+                <p>
+                  {items.length
+                    ? "试试其他状态，或上传一份新模板。"
+                    : "保存草稿，确认预览，再提交上架审核。"}
+                </p>
+                <button
+                  className="console-button secondary"
+                  onClick={() => setEditor({})}
+                >
+                  <Icon kind="plus" />
+                  {items.length ? "上传新模板" : "上传第一份模板"}
+                </button>
+                <span className="console-file-hint">
+                  支持 .html / .docx · 最大 8 MB
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="console-table-heading" aria-hidden="true">
+                  <span>模板名称</span>
+                  <span>状态</span>
+                  <span>定价</span>
+                  <span>发布日期</span>
+                  <span>使用人数</span>
+                  <span>操作</span>
+                </div>
+                <div className="console-template-list">
+                  {visible.map((template) => (
+                    <article className="console-template" key={template.id}>
+                      <div className="console-template-info">
+                        <span className="console-file-icon">
+                          <Icon kind="document" />
+                        </span>
+                        <div>
+                          <h3>{template.name}</h3>
+                          <p>
+                            V{template.version} ·{" "}
+                            {template.description || "暂无模板介绍"}
+                          </p>
+                          {template.status === "REJECTED" && (
+                            <p className="console-review-reason">
+                              审核意见：
+                              {template.reviewReason ||
+                                "请修改后重新提交审核。"}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className={`console-status status-${template.status.toLowerCase()}`}
+                      >
+                        {statuses[template.status] || "状态待确认"}
+                      </span>
+                      <span className="console-template-price">
+                        <span className="console-meta-label">定价</span>
+                        {template.pricingType === "FREE"
+                          ? "免费"
+                          : `${template.pricePoints} 积分`}
+                      </span>
+                      <div
+                        className="console-template-date"
+                        aria-label="发布日期"
+                      >
+                        <span className="console-meta-label">发布日期</span>
+                        {template.publishedAt ? (
+                          <time
+                            dateTime={template.publishedAt}
+                            title={new Intl.DateTimeFormat("zh-CN", {
+                              dateStyle: "full",
+                              timeStyle: "short",
+                              timeZone: "Asia/Shanghai",
+                            }).format(new Date(template.publishedAt))}
+                          >
+                            {new Intl.DateTimeFormat("en-CA", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              timeZone: "Asia/Shanghai",
+                            }).format(new Date(template.publishedAt))}
+                          </time>
+                        ) : (
+                          <span>
+                            {["DRAFT", "SUBMITTED", "REJECTED"].includes(
+                              template.status,
+                            )
+                              ? "未发布"
+                              : "—"}
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className="console-template-usage"
+                        aria-label="使用人数"
+                        title="使用此模板创建有效简历的去重用户数"
+                      >
+                        <span className="console-meta-label">使用人数</span>
+                        <span>
+                          {template.usageCount === null
+                            ? "—"
+                            : `${template.usageCount.toLocaleString("zh-CN")} 人`}
+                        </span>
+                      </div>
+                      <div className="console-template-actions">
+                        <TemplatePreview
+                          id={template.id}
+                          version={template.version}
+                        />
+                        {template.status === "PUBLISHED" && (
+                          <button
+                            className="console-button quiet"
+                            onClick={() =>
+                              void mutateTemplate(template, "unpublish")
+                            }
+                            disabled={Boolean(busy) || loading}
+                          >
+                            {busy === template.id ? "正在申请…" : "申请下架"}
+                          </button>
+                        )}
+                        {(template.status === "DRAFT" ||
+                          template.status === "REJECTED") && (
+                          <>
+                            <button
+                              className="console-button quiet"
+                              onClick={() => setEditor({ template })}
+                              disabled={Boolean(busy)}
+                            >
+                              编辑
+                            </button>
+                            <button
+                              className="console-button secondary"
+                              onClick={() =>
+                                void mutateTemplate(template, "submit")
+                              }
+                              disabled={
+                                Boolean(busy) || loading || !data.verified
+                              }
+                              title={
+                                !data.verified
+                                  ? "请先在博简 App 完成实名认证"
+                                  : undefined
+                              }
+                            >
+                              {busy === template.id
+                                ? "正在检查并提交…"
+                                : template.status === "REJECTED"
+                                  ? "重新提交审核"
+                                  : "提交审核"}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+        <aside className="console-right-stack">
+          {data && (
+            <section
+              className={`console-panel console-verification ${data.verified ? "verified" : ""}`}
+            >
+              <div className="console-panel-heading">
+                <h2>创作者状态</h2>
+                <Icon kind="check" />
+              </div>
+              <strong className="console-identity-status">
+                <i />
+                {data.verified ? "已完成实名认证" : "待完成实名认证"}
+              </strong>
+              <p>
+                {data.verified
+                  ? "已完成实名认证，可以提交模板上架审核。"
+                  : "上架前，请先在博简 App 完成实名认证。现在也可以上传并保存草稿。"}
+              </p>
+              <button
+                onClick={() => void load()}
+                disabled={loading || Boolean(busy)}
+              >
+                <Icon kind="refresh" />
+                {loading ? "更新中…" : "刷新状态"}
+              </button>
+            </section>
+          )}
+          <section className="console-panel console-todos">
+            <div className="console-panel-heading">
+              <h2>工作提醒</h2>
+              <Icon kind="clock" />
+            </div>
+            {[
+              { id: "DRAFT", label: "待完善草稿" },
+              { id: "REJECTED", label: "需要修改" },
+              { id: "SUBMITTED", label: "等待审核" },
+            ].map((todo) => (
+              <button
+                key={todo.id}
+                onClick={() => setFilter(todo.id)}
+                aria-label={`查看${todo.label}`}
+              >
+                <span
+                  className={`console-todo-dot status-${todo.id.toLowerCase()}`}
+                />
+                <span>{todo.label}</span>
+                <strong>
+                  {data
+                    ? items.filter((t) => t.status === todo.id).length
+                    : "—"}
+                </strong>
+                <Icon kind="arrow" />
               </button>
             ))}
-          </div>
-          <button
-            className="console-icon-button"
-            aria-label="刷新模板列表"
-            disabled={loading || Boolean(busy)}
-            onClick={() => void load()}
-          >
-            <Icon kind="refresh" />
-          </button>
-        </div>
-        {loading && !data ? (
-          <div className="console-empty" role="status">
-            <span className="console-loader" />
-            <p>正在读取你的模板…</p>
-          </div>
-        ) : !data ? (
-          <div className="console-empty">
-            <Icon />
-            <h3>暂时无法读取模板</h3>
-            <p>请检查网络后刷新列表。</p>
-            <button
-              className="console-button secondary"
-              onClick={() => void load()}
-            >
-              重新加载
-            </button>
-          </div>
-        ) : visible.length === 0 ? (
-          <div className="console-empty">
-            <div className="console-empty-art" aria-hidden="true">
-              <div className="console-paper back" />
-              <div className="console-paper">
-                <span />
-                <i />
-                <i />
-                <i />
-                <b />
-                <i />
-                <i />
-              </div>
-              <span className="console-paper-plus">+</span>
-            </div>
-            <h3>
-              {items.length ? "这里暂时还没有模板" : "第一份好模板，从你开始"}
-            </h3>
-            <p>
-              {items.length
-                ? "试试其他状态，或上传一份新模板。"
-                : "上传一份 HTML 或 DOCX 简历模板，保存草稿，再提交上架审核。"}
-            </p>
-            <button
-              className="console-button secondary"
-              onClick={() => setEditor({})}
-            >
-              <Icon kind="upload" />
-              {items.length ? "上传新模板" : "上传第一份模板"}
-            </button>
-            <span className="console-file-hint">
-              支持 .html / .docx · 最大 8 MB
-            </span>
-          </div>
-        ) : (
-          <div className="console-template-list">
-            {visible.map((template) => (
-              <article className="console-template" key={template.id}>
-                <span className="console-template-icon">
-                  <Icon />
-                  <span>模板</span>
-                </span>
-                <div className="console-template-info">
-                  <div>
-                    <h3>{template.name}</h3>
-                    <span
-                      className={`console-status status-${template.status.toLowerCase()}`}
-                    >
-                      {statuses[template.status] || "状态待确认"}
-                    </span>
-                  </div>
-                  <p>{template.description || "暂未添加模板介绍"}</p>
-                  <span className="console-template-price">
-                    {template.pricingType === "FREE"
-                      ? "免费模板"
-                      : `${template.pricePoints} 积分`}
-                  </span>
-                  {template.status === "REJECTED" && (
-                    <p className="console-review-reason">
-                      审核意见：
-                      {template.reviewReason || "请修改后重新提交审核。"}
-                    </p>
-                  )}
-                </div>
-                <TemplatePreview
-                  key={`${template.id}-${template.version}`}
-                  id={template.id}
-                  version={template.version}
-                />
-                {(template.status === "DRAFT" ||
-                  template.status === "REJECTED") && (
-                  <div className="console-template-actions">
-                    <button
-                      className="console-button quiet"
-                      onClick={() => setEditor({ template })}
-                      disabled={Boolean(busy)}
-                    >
-                      编辑
-                    </button>
-                    <button
-                      className="console-button secondary"
-                      onClick={() => void submit(template)}
-                      disabled={Boolean(busy) || loading || !data.verified}
-                      title={
-                        !data.verified
-                          ? "请先在博简 App 完成实名认证"
-                          : undefined
-                      }
-                    >
-                      {busy === template.id
-                        ? "正在检查并提交…"
-                        : template.status === "REJECTED"
-                          ? "重新提交审核"
-                          : "提交审核"}
-                      <Icon kind="arrow" />
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
-        <div className="console-library-footer">
-          <span>仅展示你创建的模板</span>
-          <span>审核通过后，将在博简 App 上架</span>
-        </div>
-      </section>
-      <aside className="console-help">
-        <span>
-          <Icon />
-          准备上传？
-        </span>
-        <p>
-          在 Word 中完成排版，使用 {"{{name}}"}、{"{{phone}}"}{" "}
-          等字段作为内容占位符。请使用示例信息，勿上传真实个人简历。
-        </p>
-        <Link className="console-guide-link" href="/console/template-guide">
-          查看完整模板制作规则<span aria-hidden="true">↗</span>
-        </Link>
-      </aside>
+          </section>
+        </aside>
+      </div>
       {editor && (
         <TemplateEditor
           template={editor.template}

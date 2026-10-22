@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import QRCode from "qrcode";
+import { createQrDataUrl } from "./qr-image";
 import type { AuthUser, QrStatus } from "./auth-types";
 const FLOW = "bojian_web_qr",
   ACCESS = "bojian_web_session",
@@ -307,12 +307,7 @@ export async function createChallenge(request: NextRequest) {
   )
     throw invalidResponse();
   const attempt = randomUUID(),
-    qrDataUrl = await QRCode.toDataURL(content, {
-      errorCorrectionLevel: "H",
-      width: 600,
-      margin: 4,
-      color: { dark: "#10131aff", light: "#ffffffff" },
-    });
+    qrDataUrl = await createQrDataUrl(content);
   const response = reply(
     { attempt, qrDataUrl, expiresAt, pollAfterSeconds: 2 },
     201,

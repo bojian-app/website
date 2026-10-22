@@ -1,5 +1,5 @@
 import "server-only";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   AuthFailure,
   failure,
@@ -98,21 +98,30 @@ function projectTemplate(value: unknown): CreatorTemplate {
       typeof data.review_reason === "string"
         ? data.review_reason.slice(0, 2000)
         : "",
+    publishedAt: null,
+    usageCount: null,
   };
 }
 export async function creatorRoute(request: NextRequest, path: string[]) {
   try {
     if (request.method !== "GET") protectMutation(request);
     const route = path.join("/");
-    const preview = /^templates\/([1-9]\d{0,15})\/preview$/.exec(route);
+    const preview = /^templates\/([1-9]\d{0,15})\/preview(?:\/pdf)?$/.exec(
+      route,
+    );
     const complete = /^uploads\/([1-9]\d{0,15})\/complete$/.exec(route);
     const edit = /^templates\/([1-9]\d{0,15})$/.exec(route);
     const submit = /^templates\/([1-9]\d{0,15})\/submit$/.exec(route);
+    const unpublish = /^templates\/([1-9]\d{0,15})\/unpublish$/.exec(route);
     if (
       !(request.method === "GET" && (route === "workspace" || preview)) &&
       !(
         request.method === "POST" &&
-        (route === "uploads" || route === "templates" || complete || submit)
+        (route === "uploads" ||
+          route === "templates" ||
+          complete ||
+          submit ||
+          unpublish)
       ) &&
       !(request.method === "PATCH" && edit)
     )
@@ -133,10 +142,49 @@ export async function creatorRoute(request: NextRequest, path: string[]) {
         const today = new Date(Date.now() + 8 * 3600000)
           .toISOString()
           .slice(0, 10);
+        const items = list.items
+          .filter((t) => object(t).source === "PUBLISHED_BY_ME")
+          .map(projectTemplate);
+        // The owned list lacks these statistics; use the existing authenticated
+        // detail API, only for owned IDs, with at most four requests in flight.
+        let next = 0;
+        await Promise.all(
+          Array.from({ length: Math.min(4, items.length) }, async () => {
+            while (next < items.length) {
+              const template = items[next++];
+              try {
+                const detail = object(
+                  await api(`/api/v1/templates/${template.id}`),
+                );
+                if (String(detail.id) !== template.id) continue;
+                if (
+                  typeof detail.published_at === "string" &&
+                  detail.published_at.length <= 40 &&
+                  Number.isFinite(Date.parse(detail.published_at))
+                )
+                  template.publishedAt = new Date(
+                    detail.published_at,
+                  ).toISOString();
+                if (
+                  typeof detail.usage_count === "number" &&
+                  Number.isSafeInteger(detail.usage_count) &&
+                  detail.usage_count >= 0
+                )
+                  template.usageCount = detail.usage_count;
+              } catch (error) {
+                if (
+                  request.signal.aborted ||
+                  (error instanceof AuthFailure && error.status === 401)
+                )
+                  throw error;
+                // Keep the template manageable if its statistics are unavailable.
+                // Missing counts remain null rather than appearing as zero users.
+              }
+            }
+          }),
+        );
         return reply({
-          items: list.items
-            .filter((t) => object(t).source === "PUBLISHED_BY_ME")
-            .map(projectTemplate),
+          items,
           verified:
             verification.status === "VERIFIED" &&
             typeof verification.valid_until === "string" &&
@@ -162,7 +210,46 @@ export async function creatorRoute(request: NextRequest, path: string[]) {
             safe[key] = url.href;
           }
         }
-        return reply(safe);
+        if (!route.endsWith("/pdf")) return reply(safe);
+        if (safe.status !== "READY" || !safe.preview_pdf_url)
+          throw new AuthFailure(
+            "PREVIEW_NOT_READY",
+            "PDF 预览尚未准备好，请稍后重试。",
+            409,
+          );
+        let pdf: Response;
+        try {
+          // Fetch only the URL returned by the authenticated preview-assets API.
+          // Storage must never receive the website's cookies or access token.
+          pdf = await fetch(String(safe.preview_pdf_url), {
+            headers: { Accept: "application/pdf" },
+            credentials: "omit",
+            cache: "no-store",
+            redirect: "error",
+            signal: AbortSignal.any([
+              request.signal,
+              AbortSignal.timeout(90000),
+            ]),
+          });
+          if (!pdf.ok || !pdf.body) {
+            await pdf.body?.cancel();
+            throw new Error("PDF unavailable");
+          }
+        } catch {
+          throw new AuthFailure(
+            "PREVIEW_UNAVAILABLE",
+            "PDF 预览加载失败，请返回控制台重试。",
+            502,
+          );
+        }
+        return new NextResponse(pdf.body, {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `inline; filename="template-${preview[1]}-preview.pdf"`,
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+          },
+        });
       }
       if (route === "uploads") {
         const filename = string(data.filename, 240, true),
@@ -236,6 +323,22 @@ export async function creatorRoute(request: NextRequest, path: string[]) {
           { id: positive(result.id), status: result.status },
           edit ? 200 : 201,
         );
+      }
+      if (unpublish) {
+        positive(Number(unpublish[1]));
+        const result = object(
+          await api(
+            `/api/v1/creator/templates/${unpublish[1]}/unpublish`,
+            "POST",
+            {},
+          ),
+        );
+        if (
+          positive(result.id) !== Number(unpublish[1]) ||
+          result.status !== "UNPUBLISH_REQUESTED"
+        )
+          throw invalid("下架申请状态异常，请刷新列表确认结果。");
+        return reply({ id: result.id, status: result.status }, 202);
       }
       if (submit) {
         positive(Number(submit[1]));

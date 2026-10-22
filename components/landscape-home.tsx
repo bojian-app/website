@@ -16,7 +16,7 @@ export function LandscapeHome() {
       </div>
       <div className="brand-stage">
         <h1 id="landing-title" className="brand-title">
-          把经历，写成新的可能。
+          助力失业者找到好的归属
         </h1>
       </div>
     </main>

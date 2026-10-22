@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -236,18 +235,13 @@ export function QrLogin({ returnTo = "/" }: { returnTo?: "/" | "/console" }) {
         <span className="qr-corner qr-bl" aria-hidden="true" />
         <span className="qr-corner qr-br" aria-hidden="true" />
         {canScan ? (
-          <>
-            <img
-              className="qr-image"
-              src={challenge.qrDataUrl}
-              width="240"
-              height="240"
-              alt="登录二维码，请使用博简 App 扫描"
-            />
-            <span className="qr-brand">
-              <Image src="/brand/app-icon.png" width={30} height={30} alt="" />
-            </span>
-          </>
+          <img
+            className="qr-image"
+            src={challenge.qrDataUrl}
+            width="240"
+            height="240"
+            alt="登录二维码，请使用博简 App 扫描"
+          />
         ) : (
           <div
             className={`qr-stage-message ${showCheck ? "qr-stage-checked" : ""}`}
@@ -264,36 +258,36 @@ export function QrLogin({ returnTo = "/" }: { returnTo?: "/" | "/console" }) {
             {phase === "idle" && !checking && !sessionError && (
               <p className="qr-idle-hint">勾选下方协议后显示二维码</p>
             )}
+            {(checking ||
+              sessionError ||
+              !["idle", "waiting", "expired"].includes(phase)) && (
+              <div className="qr-status" role="status" aria-live="polite">
+                <p>{checking ? "加载中…" : sessionError || messages[phase]}</p>
+              </div>
+            )}
+            {sessionError ? (
+              <button
+                className="button login-submit login-retry"
+                type="button"
+                disabled={checking}
+                onClick={() => void refresh()}
+              >
+                重新连接 <Arrow />
+              </button>
+            ) : terminal.has(phase) ? (
+              <button
+                className="button button-dark login-submit"
+                type="button"
+                disabled={!agreed || checking}
+                onClick={() => void start()}
+              >
+                {phase === "used" ? "刷新二维码" : "重新获取二维码"}
+                <Arrow diagonal />
+              </button>
+            ) : null}
           </div>
         )}
       </div>
-      {(checking ||
-        sessionError ||
-        !["idle", "waiting", "expired"].includes(phase)) && (
-        <div className="qr-status" role="status" aria-live="polite">
-          <p>{checking ? "加载中…" : sessionError || messages[phase]}</p>
-        </div>
-      )}
-      {sessionError ? (
-        <button
-          className="button login-submit login-retry"
-          type="button"
-          disabled={checking}
-          onClick={() => void refresh()}
-        >
-          重新连接 <Arrow />
-        </button>
-      ) : terminal.has(phase) ? (
-        <button
-          className="button button-dark login-submit"
-          type="button"
-          disabled={!agreed || checking}
-          onClick={() => void start()}
-        >
-          {phase === "used" ? "刷新二维码" : "重新获取二维码"}
-          <Arrow diagonal />
-        </button>
-      ) : null}
       <label className="login-consent">
         <input
           type="checkbox"

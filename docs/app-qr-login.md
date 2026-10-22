@@ -58,6 +58,8 @@ https://bojian.kelance.cn/app-login#v=1&session=<session_id>&token=<scan_token>
 
 不会把私有 browser_token 放入二维码。`/app-login` 提供系统浏览器误开时的简短提示，不做授权，并清除地址栏 fragment，不将扫码凭据上传。
 
+二维码由 `qr-code-styling` 1.9.2 在服务端生成 SVG，使用蓝色渐变、纯圆点、圆角定位框及 H 级纠错，无中央 Logo。每次生成后释放 JSDOM 窗口，浏览器继续通过 `qrDataUrl` 展示；扫码内容与登录接口协议不变。
+
 后端状态映射：WAITING → 等待；SCANNED → App 确认中；CONFIRMED → 只兑换一次；EXPIRED → 自动生成新的二维码；CANCELED/EXCHANGED → 停止轮询并允许重试。等待扫码时不显示状态、倒计时或手动刷新按钮。登录成功后直接返回首页，已有会话访问登录页也会返回首页。两秒串行查询，隐藏页暂停，离开、取消、过期、刷新时清理请求与定时器。刷新创建新的请求，旧 attempt 不会操作新二维码。
 
 ## 会话

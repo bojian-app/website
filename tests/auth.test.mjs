@@ -26,6 +26,9 @@ const creatorTemplates = new Map(),
 let creatorVerified = false,
   creatorCheckFails = false,
   storageFails = false;
+let creatorDetailStatus = 200;
+let previewStatus = "READY",
+  previewPdfUrl = "https://assets.example.test/preview.pdf";
 const creatorCalls = [];
 const testAvatarUrl =
   "https://avatars.example.test/profile.png?signature=avatar-fixture";
@@ -69,6 +72,8 @@ async function startWebsite(authOrigin) {
   const child = spawn(
     process.execPath,
     [
+      "--import",
+      "./tests/fixtures/preview-storage.mjs",
       "node_modules/next/dist/bin/next",
       "start",
       "-H",
@@ -144,6 +149,9 @@ const reset = () => {
   creatorVerified = false;
   creatorCheckFails = false;
   storageFails = false;
+  creatorDetailStatus = 200;
+  previewStatus = "READY";
+  previewPdfUrl = "https://assets.example.test/preview.pdf";
   creatorCalls.length = 0;
 };
 before(async () => {
@@ -297,12 +305,40 @@ before(async () => {
       if (!entry?.active || entry.device !== device || profileInvalid)
         return json(res, 401, { error: { code: "SESSION_INVALID" } });
       creatorCalls.push(req.method + " " + url.pathname);
-      const previewMatch = url.pathname.match(/^\/api\/v1\/templates\/(\d+)\/preview-assets$/);
+      const detailMatch = url.pathname.match(/^\/api\/v1\/templates\/(\d+)$/);
+      if (detailMatch) {
+        const template = creatorTemplates.get(Number(detailMatch[1]));
+        if (!template || template.device !== device)
+          return json(res, 404, { error: { code: "TEMPLATE_UNAVAILABLE" } });
+        if (creatorDetailStatus !== 200)
+          return json(res, creatorDetailStatus, {
+            error: { code: "DETAIL_UNAVAILABLE" },
+          });
+        return json(res, 200, {
+          data: {
+            id: template.id,
+            published_at: template.published_at ?? null,
+            usage_count: template.usage_count ?? 0,
+            manifest: "NEVER_EXPOSE_MANIFEST",
+          },
+        });
+      }
+      const previewMatch = url.pathname.match(
+        /^\/api\/v1\/templates\/(\d+)\/preview-assets$/,
+      );
       if (previewMatch) {
         const template = creatorTemplates.get(Number(previewMatch[1]));
-        if (!template || template.device !== device) return json(res,404,{error:{code:"TEMPLATE_UNAVAILABLE"}});
-        assert.equal(url.searchParams.get("version"),"1");
-        return json(res,200,{data:{version:1,preview_status:"READY",preview_pdf_url:"https://assets.example.test/preview.pdf",thumbnail_url:"https://assets.example.test/preview.png"}});
+        if (!template || template.device !== device)
+          return json(res, 404, { error: { code: "TEMPLATE_UNAVAILABLE" } });
+        assert.equal(url.searchParams.get("version"), "1");
+        return json(res, 200, {
+          data: {
+            version: 1,
+            preview_status: previewStatus,
+            preview_pdf_url: previewPdfUrl,
+            thumbnail_url: "https://assets.example.test/preview.png",
+          },
+        });
       }
 
       if (url.pathname === "/api/v1/me/identity-verification")
@@ -318,7 +354,7 @@ before(async () => {
           data: {
             items: [...creatorTemplates.values()]
               .filter((t) => t.device === device)
-              .map(({ device, ...t }) => t)
+              .map(({ device, published_at, usage_count, ...t }) => t)
               .concat([{ id: 999, name: "购买的模板", source: "ACQUIRED" }]),
           },
         });
@@ -361,7 +397,7 @@ before(async () => {
         return json(res, 200, { data: { id: file.id, status: "READY" } });
       }
       const target = url.pathname.match(
-        /^\/api\/v1\/creator\/templates\/(\d+)(?:\/(checks|submit|resubmit))?$/,
+        /^\/api\/v1\/creator\/templates\/(\d+)(?:\/(checks|submit|resubmit|unpublish))?$/,
       );
       if (
         url.pathname === "/api/v1/creator/templates" ||
@@ -408,6 +444,24 @@ before(async () => {
           return json(res, 404, {
             error: { code: "TEMPLATE_NOT_FOUND", message: "模板不存在" },
           });
+        if (target[2] === "unpublish") {
+          assert.deepEqual(
+            body,
+            {},
+            "Unpublish only forwards the fixed empty payload",
+          );
+          if (template.status !== "PUBLISHED")
+            return json(res, 409, {
+              error: {
+                code: "TEMPLATE_STATE_CONFLICT",
+                message: "模板当前不可申请下架",
+              },
+            });
+          template.status = "UNPUBLISH_REQUESTED";
+          return json(res, 202, {
+            data: { id: template.id, status: template.status },
+          });
+        }
         if (target[2] === "checks")
           return json(res, 202, {
             data: {
@@ -504,7 +558,7 @@ test("同源与同意检查；敏感轮询凭据不出现在 JSON 或 QR 内容�
     400,
   );
   const { response, cookies, data } = await challenge();
-  assert.match(data.qrDataUrl, /^data:image\/png;base64,/);
+  assert.match(data.qrDataUrl, /^data:image\/svg\+xml;base64,/);
   assert(data.attempt);
   assert.match(cookies, /bojian_web_qr=/);
   const value = decodeURIComponent(
@@ -688,7 +742,7 @@ test("真实浏览器：仅 App 方式、扫码确认、持久登录、退出、
     qrBitmap.width,
     qrBitmap.height,
   );
-  assert(decoded, "Displayed QR remains decodable with brand overlay");
+  assert(decoded, "Displayed dotted QR remains decodable");
   assert.match(decoded.data, /^https:\/\/bojian\.kelance\.cn\/app-login#/);
 
   assert.equal(await page.locator(".qr-status, .qr-expiry").count(), 0);
@@ -889,6 +943,114 @@ test("服务端判定过期自动换码；刷新失败停止重试，撤回同�
   await context.close();
   reset();
 });
+test("二维码获取、自动刷新和失败重试时页面布局保持稳定", async () => {
+  reset();
+  for (const width of [1440, 390, 320]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 900 },
+    });
+    const page = await context.newPage();
+    let pendingCreation;
+    let expireNext = false;
+    await page.route("**/web-api/auth/qr**", async (route) => {
+      if (route.request().method() === "POST") {
+        pendingCreation = route;
+      } else if (expireNext) {
+        expireNext = false;
+        await route.fulfill({ json: { status: "expired" } });
+      } else {
+        await route.continue();
+      }
+    });
+    const layout = () =>
+      page.evaluate(() => ({
+        elements: [
+          ".site-header",
+          ".login-back",
+          ".login-card",
+          ".login-card-intro",
+          ".qr-stage",
+          ".login-consent",
+          ".site-footer",
+        ].map((selector) => {
+          const { x, y, width, height } = document
+            .querySelector(selector)
+            .getBoundingClientRect();
+          return { selector, x, y, width, height };
+        }),
+        scrollHeight: document.documentElement.scrollHeight,
+        scrollWidth: document.documentElement.scrollWidth,
+        scrollY: window.scrollY,
+      }));
+    const waitForLoading = async () => {
+      await page.getByText("正在获取二维码…", { exact: true }).waitFor();
+      for (let attempt = 0; !pendingCreation && attempt < 100; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      assert(
+        pendingCreation,
+        "QR creation request is held for layout inspection",
+      );
+    };
+    try {
+      await page.goto(base + "/login", { waitUntil: "networkidle" });
+      await page.getByText("勾选下方协议后显示二维码").waitFor();
+      const initial = await layout();
+      await page.getByRole("checkbox").check();
+      await waitForLoading();
+      assert.deepEqual(
+        await layout(),
+        initial,
+        `initial loading at ${width}px`,
+      );
+      let route = pendingCreation;
+      pendingCreation = undefined;
+      await route.continue();
+      await page.locator(".qr-image").waitFor();
+      assert.deepEqual(await layout(), initial, `ready at ${width}px`);
+      const firstImage = await page.locator(".qr-image").getAttribute("src");
+      expireNext = true;
+      await waitForLoading();
+      assert.deepEqual(
+        await layout(),
+        initial,
+        `automatic refresh at ${width}px`,
+      );
+      route = pendingCreation;
+      pendingCreation = undefined;
+      await route.continue();
+      await page.locator(".qr-image").waitFor();
+      assert.notEqual(
+        await page.locator(".qr-image").getAttribute("src"),
+        firstImage,
+      );
+      assert.deepEqual(await layout(), initial, `refreshed at ${width}px`);
+      expireNext = true;
+      await waitForLoading();
+      route = pendingCreation;
+      pendingCreation = undefined;
+      await route.fulfill({
+        status: 503,
+        json: {
+          error: { code: "AUTH_UNAVAILABLE", message: "扫码登录暂不可用" },
+        },
+      });
+      await page.getByRole("button", { name: "重新获取二维码" }).waitFor();
+      assert.deepEqual(await layout(), initial, `refresh failed at ${width}px`);
+      await page.getByRole("button", { name: "重新获取二维码" }).click();
+      await waitForLoading();
+      assert.deepEqual(await layout(), initial, `manual retry at ${width}px`);
+      route = pendingCreation;
+      pendingCreation = undefined;
+      await route.continue();
+      await page.locator(".qr-image").waitFor();
+      assert.deepEqual(await layout(), initial, `retry complete at ${width}px`);
+    } finally {
+      await context.close();
+    }
+  }
+});
+
 test("移动端与未开放状态，页面及页头均无横向溢出", async () => {
   reset();
   const context = await browser.newContext();
@@ -1076,6 +1238,62 @@ test("控制台接口：登录与同源保护、上传用途限制、所有权�
   assert.equal(data.verified, false);
   assert(!JSON.stringify(data).includes("NEVER_EXPOSE_IDENTITY"));
   assert.match(workspace.headers.get("cache-control"), /no-store/);
+  assert.equal(data.items[0].publishedAt, null);
+  assert.equal(data.items[0].usageCount, 0, "A real zero is preserved");
+  assert(creatorCalls.includes(`GET /api/v1/templates/${created.id}`));
+  assert(
+    !creatorCalls.includes("GET /api/v1/templates/999"),
+    "Acquired templates do not trigger detail reads",
+  );
+  const template = creatorTemplates.get(created.id);
+  template.published_at = "2026-10-21T20:30:00Z";
+  template.usage_count = 1234;
+  const enriched = await (await request(api + "workspace", { cookies })).json();
+  assert.equal(enriched.items[0].publishedAt, "2026-10-21T20:30:00.000Z");
+  assert.equal(enriched.items[0].usageCount, 1234);
+  assert(!JSON.stringify(enriched).includes("NEVER_EXPOSE_MANIFEST"));
+  template.published_at = "bad date";
+  template.usage_count = -1;
+  const malformed = await (
+    await request(api + "workspace", { cookies })
+  ).json();
+  assert.equal(malformed.items[0].publishedAt, null);
+  assert.equal(malformed.items[0].usageCount, null);
+  creatorDetailStatus = 503;
+  const degraded = await request(api + "workspace", { cookies });
+  assert.equal(degraded.status, 200);
+  assert.equal(
+    (await degraded.json()).items[0].usageCount,
+    null,
+    "Unavailable statistics do not become zero users",
+  );
+  creatorDetailStatus = 401;
+  const invalidDetailSession = await request(api + "workspace", { cookies });
+  assert.equal(
+    invalidDetailSession.status,
+    401,
+    "Statistics must not conceal an invalid session",
+  );
+  creatorDetailStatus = 200;
+  template.published_at = null;
+  template.usage_count = 0;
+  const pdfPath = api + `templates/${created.id}/preview/pdf?version=1`;
+  assert.equal((await request(pdfPath)).status, 401);
+  const pdf = await request(pdfPath, { cookies });
+  assert.equal(pdf.status, 200);
+  assert.equal(pdf.headers.get("content-type"), "application/pdf");
+  assert.match(pdf.headers.get("content-disposition"), /^inline;/);
+  assert.match(pdf.headers.get("cache-control"), /private, no-store/);
+  assert((await pdf.text()).startsWith("%PDF-1.4"));
+  previewStatus = "PROCESSING";
+  assert.equal((await request(pdfPath, { cookies })).status, 409);
+  creatorDetailStatus = 200;
+  previewStatus = "READY";
+  previewPdfUrl += "?unavailable=1";
+  assert.equal((await request(pdfPath, { cookies })).status, 502);
+  previewPdfUrl = "http://untrusted.example/preview.pdf";
+  assert.equal((await request(pdfPath, { cookies })).status, 400);
+  previewPdfUrl = "https://assets.example.test/preview.pdf";
   const withoutAccess = cookies
     .split("; ")
     .filter((c) => !c.startsWith("bojian_web_session="))
@@ -1132,6 +1350,7 @@ test("控制台接口：登录与同源保护、上传用途限制、所有权�
     "Submission awaits review, not published",
   );
   const otherCookies = await creatorLogin();
+  assert.equal((await request(pdfPath, { cookies: otherCookies })).status, 404);
   assert.equal(
     (await (await request(api + "workspace", { cookies: otherCookies })).json())
       .items.length,
@@ -1146,6 +1365,45 @@ test("控制台接口：登录与同源保护、上传用途限制、所有权�
     ).status,
     404,
   );
+  const unpublishPath = api + `templates/${created.id}/unpublish`;
+  assert.equal((await request(unpublishPath, { body: {} })).status, 401);
+  assert.equal(
+    (
+      await request(unpublishPath, {
+        cookies: rotated,
+        origin: "https://untrusted.example",
+        body: {},
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await request(unpublishPath, { cookies: otherCookies, body: {} })).status,
+    404,
+  );
+  assert.equal(
+    (await request(unpublishPath, { cookies: rotated, body: {} })).status,
+    409,
+    "Only published templates can be withdrawn",
+  );
+  creatorVerified = false;
+  creatorTemplates.get(created.id).status = "PUBLISHED";
+  const withdrawn = await request(unpublishPath, {
+    cookies: rotated,
+    body: { status: "UNPUBLISHED", creator_id: 999 },
+  });
+  assert.equal(withdrawn.status, 202);
+  assert.deepEqual(await withdrawn.json(), {
+    id: created.id,
+    status: "UNPUBLISH_REQUESTED",
+  });
+  assert.match(withdrawn.headers.get("cache-control"), /no-store/);
+  assert.equal(
+    (await request(unpublishPath, { cookies: rotated, body: {} })).status,
+    409,
+    "No duplicate withdrawal request",
+  );
+  assert.equal(creatorTemplates.get(created.id).status, "UNPUBLISH_REQUESTED");
   reset();
 });
 
@@ -1182,12 +1440,40 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   assert(menuText.indexOf("控制台") < menuText.indexOf("退出登录"));
   await page.getByRole("link", { name: "控制台", exact: true }).click();
   await page.waitForURL(base + "/console");
-  await page.getByRole("heading", { name: "我的简历模板" }).waitFor();
+  await page.getByRole("heading", { name: "模板库" }).waitFor();
   await page.getByRole("button", { name: "上传第一份模板" }).waitFor();
-  assert.deepEqual(
-    await page.locator(".header-inner").boundingBox(),
-    homeHeader,
+  assert.equal(
+    await page
+      .locator(".console-heading, .console-library-footer, .console-help")
+      .count(),
+    0,
   );
+  assert.equal(
+    await page.getByRole("heading", { name: "我的简历模板" }).count(),
+    0,
+  );
+  const appHeader = await page.locator(".header-inner").boundingBox();
+  assert.notDeepEqual(
+    appHeader,
+    homeHeader,
+    "Console uses its own application header",
+  );
+  assert.equal(appHeader.height, 64);
+  assert.equal(appHeader.x, 0);
+  assert.equal(appHeader.width, 1440);
+  assert.deepEqual(
+    await page.locator(".console-application").boundingBox(),
+    {
+      x: 0,
+      y: 64,
+      width: 1440,
+      height: 976,
+    },
+    "Application shell fills the viewport below the header",
+  );
+  assert.equal(await page.locator(".site-footer").count(), 0);
+  assert(await page.locator(".console-app-footer").isVisible());
+
   assert(
     await page
       .locator(".site-header")
@@ -1222,6 +1508,27 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   await guide
     .getByRole("heading", { name: "完整字段表", exact: true })
     .waitFor();
+  assert.equal(
+    await guide
+      .locator(".console-header-nav a[aria-current='page']")
+      .getAttribute("href"),
+    "/console/template-guide",
+  );
+  const fixedHeader = await guide.locator(".site-header").boundingBox();
+  await guide
+    .locator(".console-application-content")
+    .evaluate((element) => (element.scrollTop = element.scrollHeight));
+  assert.deepEqual(
+    await guide.locator(".site-header").boundingBox(),
+    fixedHeader,
+    "Application header stays fixed while the guide scrolls",
+  );
+  assert.equal(
+    await guide
+      .locator(".console-rail")
+      .evaluate((element) => element.getBoundingClientRect().height),
+    976,
+  );
   await guide.close();
   assert(
     await page.getByRole("dialog").isVisible(),
@@ -1242,9 +1549,54 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   await page.getByRole("button", { name: "保存草稿", exact: true }).click();
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   await page.getByRole("heading", { name: "留白 · 单栏简历" }).waitFor();
-  await page.getByRole("button", { name: "查看预览", exact: true }).click();
-  await page.getByRole("link",{name:"打开完整 PDF 预览 ↗"}).waitFor();
-  assert.equal(await page.getByRole("link",{name:"打开完整 PDF 预览 ↗"}).getAttribute("href"),"https://assets.example.test/preview.pdf");
+  assert.equal(await page.locator(".console-preview-panel").count(), 0);
+  assert.match(
+    await page.locator(".console-template-date").innerText(),
+    /未发布/,
+  );
+  assert.match(
+    await page.locator(".console-template-usage").innerText(),
+    /0 人/,
+  );
+  assert(
+    !creatorCalls.some((call) => call.endsWith("/preview-assets")),
+    "The list does not load the removed preview panel",
+  );
+  await page.screenshot({
+    path: "artifacts/console-1440-templates.png",
+    fullPage: true,
+  });
+  const previewLink = page.getByRole("link", { name: "查看预览", exact: true });
+  await previewLink.waitFor();
+  const pdfUrl =
+    base + "/web-api/auth/creator/templates/1/preview/pdf?version=1";
+  assert.equal(
+    await previewLink.getAttribute("href"),
+    new URL(pdfUrl).pathname + "?version=1",
+  );
+  let downloads = 0;
+  page.on("download", () => downloads++);
+  const pdfResponse = context.waitForEvent("response", {
+    predicate: (response) => response.url() === pdfUrl,
+  });
+  const [pdfPage] = await Promise.all([
+    context.waitForEvent("page"),
+    previewLink.click(),
+  ]);
+  pdfPage.on("download", () => downloads++);
+  const response = await pdfResponse;
+  assert.equal(response.status(), 200);
+  assert.equal(response.headers()["content-type"], "application/pdf");
+  assert.match(response.headers()["content-disposition"], /^inline;/);
+  await pdfPage.waitForURL(pdfUrl);
+  await pdfPage.waitForLoadState("load");
+  assert.equal(
+    downloads,
+    0,
+    "PDF opens in a new tab without an automatic download",
+  );
+  assert.equal(page.url(), base + "/console");
+  await pdfPage.close();
 
   assert(
     await page
@@ -1269,7 +1621,8 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   await page.getByRole("button", { name: "保存修改" }).click();
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   await page
-    .getByText("已补充：适合应届生和产品岗位的简约排版", { exact: true })
+    .locator(".console-template-info p")
+    .filter({ hasText: "已补充：适合应届生和产品岗位的简约排版" })
     .waitFor();
   await page.getByRole("button", { name: "重新提交审核", exact: true }).click();
   await page.locator(".console-status").filter({ hasText: "审核中" }).waitFor();
@@ -1297,11 +1650,99 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
     completedBefore,
   );
   await page.getByRole("button", { name: "取消", exact: true }).click();
+  creatorTemplates.get(1).status = "PUBLISHED";
+  creatorTemplates.get(1).published_at = "2026-10-21T20:30:00Z";
+  creatorTemplates.get(1).usage_count = 1234;
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator(".console-preview-panel").count(), 0);
+  assert.equal(
+    await page.locator(".console-template-date time").innerText(),
+    "2026-10-22",
+    "Publication date uses Asia/Shanghai",
+  );
+  assert.match(
+    await page.locator(".console-template-usage").innerText(),
+    /1,234 人/,
+  );
+  assert(
+    await page.getByRole("link", { name: "查看预览", exact: true }).isVisible(),
+  );
+  const unpublishCalls = () =>
+    creatorCalls.filter((call) => call.endsWith("/unpublish")).length;
+  const beforeUnpublish = unpublishCalls();
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "申请下架", exact: true }).click();
+  assert.equal(
+    unpublishCalls(),
+    beforeUnpublish,
+    "Cancelling sends no mutation",
+  );
+  creatorTemplates.get(1).status = "SUBMITTED";
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "申请下架", exact: true }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "模板当前不可申请下架" })
+    .waitFor();
+  assert.equal(
+    await page
+      .locator(".console-notice")
+      .filter({ hasText: "「留白 · 单栏简历」已申请下架，等待平台审核。" })
+      .count(),
+    0,
+  );
+  creatorTemplates.get(1).status = "PUBLISHED";
+  await page.getByRole("button", { name: "刷新模板列表" }).click();
+  await page.locator(".console-error").waitFor({ state: "hidden" });
+  page.once("dialog", async (dialog) => {
+    assert.match(dialog.message(), /留白 · 单栏简历/);
+    assert.match(dialog.message(), /下架审核/);
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "申请下架", exact: true }).click();
+  await page
+    .locator(".console-notice")
+    .filter({ hasText: "「留白 · 单栏简历」已申请下架，等待平台审核。" })
+    .waitFor();
+  await page
+    .locator(".console-status")
+    .filter({ hasText: "下架审核中" })
+    .waitFor();
+  assert.equal(
+    unpublishCalls(),
+    beforeUnpublish + 2,
+    "Exactly one failed and one successful request",
+  );
+  assert.equal(
+    await page.getByRole("button", { name: "申请下架", exact: true }).count(),
+    0,
+  );
+  await page
+    .locator(".console-filters")
+    .getByRole("button", { name: /^下架审核中/ })
+    .click();
+  assert.equal(await page.locator(".console-template").count(), 1);
+  creatorTemplates.get(1).status = "UNPUBLISHED";
+  await page.getByRole("button", { name: "刷新模板列表" }).click();
+  await page.getByRole("heading", { name: "这里暂时还没有模板" }).waitFor();
+  await page
+    .locator(".console-filters")
+    .getByRole("button", { name: /^已下架/ })
+    .click();
+  await page.locator(".console-status").filter({ hasText: "已下架" }).waitFor();
+  assert.equal(
+    await page.getByRole("button", { name: "申请下架", exact: true }).count(),
+    0,
+  );
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     assert(
       await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
+        () =>
+          document.documentElement.scrollWidth <= innerWidth &&
+          [...document.querySelectorAll(".console-application-content")].every(
+            (el) => el.scrollWidth <= el.clientWidth,
+          ),
       ),
       `Console overflow at ${width}`,
     );
@@ -1336,7 +1777,7 @@ test("控制台登录返回目标仅允许站内控制台，默认仍返回首�
   status = "confirmed";
   await page.getByRole("checkbox").check();
   await page.waitForURL(base + "/console");
-  await page.getByRole("heading", { name: "我的简历模板" }).waitFor();
+  await page.getByRole("heading", { name: "模板库" }).waitFor();
   await page.goto(base + "/login?next=https://untrusted.example");
   await page.waitForURL(base + "/");
   await context.close();

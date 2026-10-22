@@ -86,7 +86,7 @@ test("山湖首页加载指定背景，主文案可见且不加载旧建筑图",
     assert.deepEqual(backgroundRequests, []);
     assert.equal(
       await page.getByRole("heading", { level: 1 }).innerText(),
-      "把经历，写成新的可能。",
+      "助力失业者找到好的归属",
     );
     assert.equal(
       await page
@@ -157,7 +157,7 @@ test("各种尺寸背景铺满视口，仅顶部保留操作入口", async () =>
       assert(hero.y >= main.y && hero.y + hero.height <= main.y + main.height);
       assert(
         await page
-          .getByText("把经历，写成新的可能。", { exact: true })
+          .getByText("助力失业者找到好的归属", { exact: true })
           .isVisible(),
       );
       const login = page
@@ -245,7 +245,7 @@ test("减少动态效果与页面往返保持可操作，不残留重复场景",
       await page
         .getByRole("heading", {
           level: 1,
-          name: "把经历，写成新的可能。",
+          name: "助力失业者找到好的归属",
           exact: true,
         })
         .isVisible(),

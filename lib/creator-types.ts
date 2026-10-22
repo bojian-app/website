@@ -15,6 +15,8 @@ export type CreatorTemplate = {
   pricingType: "FREE" | "PAID";
   pricePoints: number;
   reviewReason: string;
+  publishedAt: string | null;
+  usageCount: number | null;
 };
 export type CreatorWorkspace = { items: CreatorTemplate[]; verified: boolean };
 export type TemplateInput = {

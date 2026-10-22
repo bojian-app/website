@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
+import jsQR from "jsqr";
+import { PNG } from "pngjs";
 const base = process.env.BOJIAN_SMOKE_ORIGIN || "https://bojian.kelance.cn";
 const destination =
   process.env.BOJIAN_SMOKE_ARTIFACTS || "artifacts/deploy-smoke";
@@ -28,7 +30,7 @@ try {
   assert.equal(home.status(), 200);
   assert.equal(
     await page.getByRole("heading", { level: 1 }).innerText(),
-    "把经历，写成新的可能。",
+    "助力失业者找到好的归属",
   );
   await page.screenshot({
     path: destination + "/home-desktop.png",
@@ -92,17 +94,19 @@ try {
   });
   await page.keyboard.press("Escape");
   await notice.waitFor({ state: "hidden" });
-  const homeHeader = await page.locator(".header-inner").boundingBox();
   await page.goto(base + "/console", { waitUntil: "domcontentloaded" });
-  assert.deepEqual(
-    await page.locator(".header-inner").boundingBox(),
-    homeHeader,
-  );
+  const appHeader = await page.locator(".header-inner").boundingBox();
+  assert.equal(appHeader.height, 56);
+  assert.equal(appHeader.width, 390);
+  assert.equal(appHeader.x, 0);
+  assert.deepEqual(await page.locator(".console-application").boundingBox(), {x: 0, y: 56, width: 390, height: 788});
+  assert.equal(await page.locator(".site-footer").count(), 0);
+
   await page.screenshot({
     path: destination + "/console-mobile.png",
     fullPage: true,
   });
-  checks.push("console header matches homepage");
+  checks.push("full viewport console application shell and compact header");
   await page.getByRole("link", { name: "登录并进入控制台" }).click();
   await page.waitForURL(
     (url) =>
@@ -122,13 +126,26 @@ try {
   const result = await creation;
   assert.equal(result.status(), 201);
   const qr = await result.json();
-  assert(qr.qrDataUrl.startsWith("data:image/png;base64,"));
+  assert(qr.qrDataUrl.startsWith("data:image/svg+xml;base64,"));
   const status = await page.waitForResponse((r) =>
     r.url().startsWith(base + "/web-api/auth/qr?"),
   );
   assert.equal(status.status(), 200);
   assert.equal((await status.json()).status, "waiting");
   checks.push("production QR creation and polling");
+  await page.locator(".qr-image").evaluate((image) => image.decode());
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const bitmap = PNG.sync.read(await page.locator(".qr-stage").screenshot());
+    const decoded = jsQR(
+      new Uint8ClampedArray(bitmap.data),
+      bitmap.width,
+      bitmap.height,
+    );
+    assert(decoded, `Blue QR decodes at ${width}px`);
+    assert.match(decoded.data, /^https:\/\/bojian\.kelance\.cn\/app-login#/);
+    checks.push(`blue QR decodes at ${width}px`);
+  }
   await page.getByRole("checkbox").uncheck();
   for (const path of [
     "/privacy",

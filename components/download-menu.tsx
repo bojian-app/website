@@ -81,7 +81,12 @@ export function DownloadMenu() {
   const notify = useContext(DownloadNotice);
   return (
     <div className="download-action">
-      <button type="button" className="landing-download" onClick={notify}>
+      <button
+        type="button"
+        className="landing-download"
+        onClick={notify}
+        aria-label="下载 App"
+      >
         <DownloadIcon />
         <span>下载 App</span>
       </button>
