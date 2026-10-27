@@ -1,6 +1,6 @@
 # 博简 App 扫码登录：官网对接
 
-官网代码位于 `~/bojian-website`。按照已有后端 `docs/app-qr-login.md`、`internal/httpapi/app_qr_login.go` 与 `docs/examples/app-qr-login.mjs` 实际契约接入；后端任务关联 `fahnzjan/bojian-mobile#32`。
+官网代码位于 `~/bojian/website`。按照已有后端 `docs/app-qr-login.md`、`internal/httpapi/app_qr_login.go` 与 `docs/examples/app-qr-login.mjs` 实际契约接入；后端任务关联 `fahnzjan/bojian-mobile#32`。
 
 ## 配置
 

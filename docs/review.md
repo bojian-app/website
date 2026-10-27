@@ -1,6 +1,6 @@
 # 2026-10-20 最终自审
 
-范围：独立 Next.js + GSAP 官网 `~/bojian-website`、官网对现有 App 扫码协议的接入，以及用户追加授权的 API 服务发布。未改动或重装手机 App，未替换线上旧官网，未提交或推送代码。
+范围：独立 Next.js + GSAP 官网 `~/bojian/website`、官网对现有 App 扫码协议的接入，以及用户追加授权的 API 服务发布。未改动或重装手机 App，未替换线上旧官网，未提交或推送代码。
 
 关联：[官网 #8](https://github.com/fahnzjan/bojian-backend/issues/8)、[App/后端扫码 #32](https://github.com/fahnzjan/bojian-mobile/issues/32)。两个 Issue 保留开放，等待提交推送。
 
