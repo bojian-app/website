@@ -101,6 +101,7 @@ function browserHeaders(request: NextRequest, browserDevice = device(request)) {
     "X-Device-Id": browserDevice,
     "X-Platform": "WEB",
     "X-App-Version": "1.0.0",
+    "X-Template-Protocol": "2",
     "User-Agent": (request.headers.get("user-agent") || "Bojian Website")
       .replace(/[\x00-\x1f]/g, "")
       .slice(0, 512),

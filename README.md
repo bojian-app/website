@@ -22,8 +22,9 @@ pnpm start
 
 - `/`：同款 Moraine Lake 山湖照片铺满整个视口，顶部导航和页脚透明叠加在背景上。中央仅保留一句主标题，登录和下载只在顶部出现一次，手机竖向裁切。
 - `/login`：桌面和手机均使用居中扫码卡片，背景采用淡蓝渐变和细分隔线。二维码空态提示先勾选协议；同意后自动生成，过期自动刷新。默认登录后回首页，从控制台进入登录时回到控制台。
-- `/console`：账号菜单中“退出登录”上方的控制台。支持 DOCX 上传、草稿编辑、免费/积分定价、提交审核和驳回后重新提交，仅展示自己创建的模板。上架审核前须在 App 完成实名认证，未认证仍可保存草稿。接入说明见 [docs/creator-console.md](docs/creator-console.md)。
-- `/console/template-guide`：完整模板制作规则，包括基础字段、经历循环、条件显示、照片设置和排版限制。控制台和上传窗口均可打开；DOCX 大小统一限制为 8 MB，与预览和导出的实际能力一致。
+- `/console`：账号菜单中“退出登录”上方的控制台。支持 V2 HTML/HTM 上传（不支持 Word）、草稿编辑、免费/积分定价、提交审核和驳回后重新提交，仅展示自己创建的模板。上架审核前须在 App 完成实名认证，未认证仍可保存草稿。接入说明见 [docs/creator-console.md](docs/creator-console.md)。
+- `/console/template-guide`：完整模板制作规则，包括基础字段、经历循环、条件显示、照片设置和排版限制。控制台和上传窗口均可打开；HTML/HTM 大小统一限制为 8 MB，与预览和导出的实际能力一致。
+- `/resume-review/[token]`：仅通过 APP 生成的外部链接进入，自动分配游客，支持简历评论与改写建议，由本人在 APP 确认采用。链接长期有效直到本人停用；独立页面不显示官网导航，不进入 sitemap，并禁止索引。
 - `/app-login`：系统浏览器误开扫码链接时的提示，不执行授权。
 - `/privacy`、`/terms`：保留登录协议所需法律正文。
 - `/opengraph-image`、`/sitemap.xml`、`/robots.txt`：分享图与搜索元数据。
@@ -65,3 +66,7 @@ node deploy/smoke.mjs
 App 图标来自现有授权品牌资产，首页照片来自 James Wheeler / Pexels，详情见 `docs/assets.md`。旧产品预览与粒子源码留存，当前首页不挂载，不进入首页客户端包。旧建筑背景已从页面移除，历史来源记录见 `docs/assets.md`。没有新增外部字体、模型、分析脚本或生成图片。
 
 源码仓库：https://github.com/fahnzjan/bojian-website 。官网已于 2026-10-21 部署至 https://bojian.kelance.cn ，发布及回滚记录见 [docs/website-release.md](docs/website-release.md)，历史验收记录见 `docs/review.md`。任务关联：https://github.com/fahnzjan/bojian-backend/issues/8 。
+
+## 外部简历链接发布（2026-11-02）
+
+`website-resume-links-20261102-r1` 已发布并通过容器及生产 smoke 检查。3 项外部链接流程检查和 19 项原有官网回归检查通过；验证资料保留在 `artifacts/resume-link-validation`，配套 App `1.0.0+2026110216` 已安装，待人工测试。游客使用链接范围内的 HttpOnly Cookie；同源接入层限制可访问操作，不提供游客采纳接口。

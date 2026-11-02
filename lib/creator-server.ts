@@ -255,11 +255,11 @@ export async function creatorRoute(request: NextRequest, path: string[]) {
         const filename = string(data.filename, 240, true),
           size = positive(data.size_bytes);
         if (
-          !/\.(docx|html|htm)$/i.test(filename) ||
+          !/\.(html|htm|zip)$/i.test(filename) ||
           /[\/\\]/.test(filename) ||
           size > MAX_TEMPLATE_BYTES
         )
-          throw invalid("请上传不超过 8 MB 的 HTML 或 DOCX 文件。");
+          throw invalid("请上传不超过 8 MB 的 HTML 文件或原生模板 ZIP 目录包。");
         const ticket = object(
           await api("/api/v1/files/uploads", "POST", {
             purpose: "TEMPLATE_SOURCE",

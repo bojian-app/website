@@ -38,8 +38,8 @@ export async function creatorRequest<T>(
   }
 }
 export function validateTemplateFile(file: File) {
-  if (!/\.(docx|html|htm)$/i.test(file.name))
-    return "请选择 HTML 或 DOCX 模板文件。";
+  if (!/\.(html|htm|zip)$/i.test(file.name))
+    return "请选择 HTML 文件或原生模板 ZIP 目录包。";
   if (!file.size || file.size > MAX_TEMPLATE_BYTES)
     return "文件须大于 0 字节且不超过 8 MB。";
   return "";
@@ -51,14 +51,6 @@ export async function uploadTemplate(
 ) {
   const invalid = validateTemplateFile(file);
   if (invalid) throw new Error(invalid);
-  const magic = new Uint8Array(await file.slice(0, 4).arrayBuffer());
-  if (
-    /\.docx$/i.test(file.name) &&
-    (magic[0] !== 0x50 || magic[1] !== 0x4b || magic[2] !== 3 || magic[3] !== 4)
-  )
-    throw new Error(
-      "文件不是有效的 DOCX 文档，请用 Word 另存为 .docx 后重试。",
-    );
   stage("正在上传文件…");
   const ticket = await creatorRequest<UploadTicket>(
     "uploads",

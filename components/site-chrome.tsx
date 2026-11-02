@@ -28,6 +28,7 @@ function ChromeIcon({ kind }: { kind: "templates" | "guide" | "home" }) {
 
 export function SiteHeader() {
   const pathname = usePathname();
+  if (pathname.startsWith("/resume-review/")) return null;
   const consolePage =
     pathname === "/console" || pathname.startsWith("/console/");
   const guide = pathname === "/console/template-guide";
@@ -64,6 +65,7 @@ export function SiteHeader() {
 
 export function SiteFooter({ year }: { year: number }) {
   const pathname = usePathname();
+  if (pathname.startsWith("/resume-review/")) return null;
   if (pathname === "/console" || pathname.startsWith("/console/")) return null;
   return (
     <footer className="site-footer wrap">

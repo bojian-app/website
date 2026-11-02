@@ -1,10 +1,11 @@
-export const DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 export const HTML_MIME = "text/html";
 export function templateMime(filename: string) {
-  return /\.docx$/i.test(filename) ? DOCX_MIME : HTML_MIME;
+  if (/\.zip$/i.test(filename)) return "application/zip";
+  if (!/\.(html|htm)$/i.test(filename))
+    throw new Error("仅支持 HTML/HTM 或原生模板 ZIP 目录包");
+  return HTML_MIME;
 }
-// Both source formats use the same 8 MiB limit.
+// HTML/HTM source files share the 8 MiB limit.
 export const MAX_TEMPLATE_BYTES = 8 * 1024 * 1024;
 export type CreatorTemplate = {
   id: string;

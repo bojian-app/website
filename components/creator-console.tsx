@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { packTemplateDirectory } from "@/lib/template-package";
 import {
   useCallback,
   useEffect,
@@ -16,7 +17,6 @@ import {
   validateTemplateFile,
 } from "@/lib/creator-client";
 import {
-  DOCX_MIME,
   type CreatorTemplate,
   type CreatorWorkspace,
   type TemplateInput,
@@ -306,7 +306,7 @@ function Workspace() {
                 <span>1</span>
                 <div>
                   <strong>上传源文件</strong>
-                  <p>HTML 或 DOCX，最大 8 MB</p>
+                  <p>HTML / 原生模板目录包，最大 8 MB</p>
                 </div>
               </li>
               <li>
@@ -424,7 +424,7 @@ function Workspace() {
                   {items.length ? "上传新模板" : "上传第一份模板"}
                 </button>
                 <span className="console-file-hint">
-                  支持 .html / .docx · 最大 8 MB
+                  支持 HTML / ZIP 目录包 · 最大 8 MB
                 </span>
               </div>
             ) : (
@@ -658,6 +658,7 @@ function TemplateEditor({
     controller = useRef<AbortController | null>(null),
     uploaded = useRef<{ file: File; id: number } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const directoryInput = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(template?.name || ""),
     [description, setDescription] = useState(template?.description || "");
   const [pricing, setPricing] = useState<"FREE" | "PAID">(
@@ -692,13 +693,13 @@ function TemplateEditor({
     setFile(selected);
     uploaded.current = null;
     if (!name)
-      setName(selected.name.replace(/\.(docx|html|htm)$/i, "").slice(0, 160));
+      setName(selected.name.replace(/\.(html|htm|zip)$/i, "").slice(0, 160));
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (controller.current) return;
     if (!name.trim()) return setError("请输入模板名称。");
-    if (!template && !file) return setError("请先上传一份 DOCX 模板。");
+    if (!template && !file) return setError("请先选择模板文件或模板目录。");
     if (
       pricing === "PAID" &&
       (!/^\d+$/.test(points) ||
@@ -774,7 +775,7 @@ function TemplateEditor({
             <h2 id="editor-title">{template ? "编辑模板" : "上传简历模板"}</h2>
             <p id="editor-description">
               {template
-                ? "完善模板资料，或替换 DOCX 源文件。"
+                ? "完善模板资料，或替换模板文件。"
                 : "先保存为草稿，确认后再提交上架审核。"}
             </p>
           </div>
@@ -800,7 +801,7 @@ function TemplateEditor({
               e.preventDefault();
               setDragging(false);
               if (e.dataTransfer.files.length !== 1)
-                setError("每次请选择一个 HTML 或 DOCX 文件。");
+                setError("请拖入单个 HTML / ZIP 文件，目录请使用“选择模板目录”。");
               else selectFile(e.dataTransfer.files[0]);
             }}
           >
@@ -808,7 +809,7 @@ function TemplateEditor({
               ref={fileInput}
               id="template-file"
               type="file"
-              accept={`.html,.htm,text/html,.docx,${DOCX_MIME}`}
+              accept=".html,.htm,.zip,text/html,application/zip"
               className="sr-only"
               aria-label={template ? "替换模板文件（可选）" : "选择模板文件"}
               onChange={(e) => {
@@ -816,6 +817,20 @@ function TemplateEditor({
                 e.target.value = "";
               }}
             />
+            <input type="file" multiple className="sr-only" aria-label="选择原生模板目录"
+              ref={(element) => { directoryInput.current = element; element?.setAttribute("webkitdirectory", ""); }}
+              onChange={async (e) => {
+                const selected = e.target.files;
+                if (!selected?.length || stage) return;
+                setStage("正在打包模板目录…"); setError("");
+                try {
+                  const packed = await packTemplateDirectory(selected);
+                  setFile(packed); uploaded.current = null;
+                  if (!name) setName(packed.name.replace(/\.zip$/i, "").slice(0,160));
+                } catch (error) { setError(error instanceof Error ? error.message : "模板目录打包失败。"); }
+                finally { setStage(""); if(directoryInput.current) directoryInput.current.value=""; }
+              }} />
+            <button type="button" className="console-button" onClick={() => directoryInput.current?.click()}>选择模板目录</button>
             <Icon kind={file ? "document" : "upload"} />
             <label htmlFor="template-file">
               {file
@@ -828,8 +843,8 @@ function TemplateEditor({
               {file
                 ? `${(file.size / 1024 / 1024).toFixed(2)} MB · 点击文件名重新选择`
                 : template
-                  ? "可保留原文件 · 支持 HTML / DOCX，最大 8 MB"
-                  : "支持 HTML / DOCX 格式 · 最大 8 MB"}
+                  ? "可保留原文件 · 支持 HTML / ZIP，最大 8 MB"
+                  : "目录上传 HTML 与素材，服务端自动生成原生布局 · 最大 8 MB"}
             </p>
           </div>
           <label className="editor-field" htmlFor="template-name">

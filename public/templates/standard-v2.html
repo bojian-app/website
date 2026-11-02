@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>博简标准单栏模板</title>
+  <style>
+    @page {
+      size: A4;
+      margin-top: 16mm;
+      margin-right: 16mm;
+      margin-bottom: 16mm;
+      margin-left: 16mm;
+    }
+    .bj-resume { color: #243047; font-size: 10.5pt; line-height: 1.5; }
+    .bj-resume h1, .bj-resume h2, .bj-resume h3, .bj-resume p { margin: 0; }
+    .bj-header { display: flex; align-items: flex-start; gap: 18px; }
+    .bj-personal { flex: 1; min-width: 0; }
+    .bj-name { font-size: 24pt; font-weight: 600; margin-bottom: 10px !important; }
+    .bj-photo { flex: none; }
+    .bj-photo:empty { display: none; }
+    .bj-photo img { width: 25mm; height: 30mm; object-fit: cover; }
+    .bj-info, .bj-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    .bj-info p:empty, .bj-meta p:empty { display: none; }
+    .bj-section { margin-top: 18px; }
+    .bj-section h2 {
+      font-size: 12pt; color: #2463a6; font-weight: 600;
+      margin-bottom: 9px; break-after: avoid;
+    }
+    .bj-entry { margin-bottom: 14px; }
+    .bj-entry h3 { font-size: 12pt; font-weight: 600; break-after: avoid; }
+    .bj-meta { color: #667085; font-size: 9.5pt; margin-top: 3px; }
+    .bj-dates { margin-left: auto !important; }
+    .bj-body { margin-top: 6px; }
+    .bj-body p { white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 5px; }
+    .bj-body ul, .bj-body ol { margin: 0 0 5px; padding-left: 1.5em; }
+    .bj-body li { overflow-wrap: anywhere; }
+    .bj-resume h1, .bj-resume h3, .bj-info p, .bj-meta p { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+<main class="bj-resume">
+  <header class="bj-header" data-bj-section="personal_info">
+    <div class="bj-personal">
+      <h1 class="bj-name">{{name}}</h1>
+      <div class="bj-info">
+        <p>{{#if phone}}电话：{{phone}}{{/if}}</p>
+        <p>{{#if email}}邮箱：{{email}}{{/if}}</p>
+        <p>{{#if birth_date}}{{birth_date_label}}：{{birth_date}}{{/if}}</p>
+        <p>{{#if gender}}性别：{{gender}}{{/if}}</p>
+      </div>
+    </div>
+    <p class="bj-photo">{{photo}}</p>
+  </header>
+
+  <section class="bj-section" data-bj-section="job_expectation">
+    <h2>求职意向</h2>
+    <div class="bj-info">
+      <p>{{#if position}}期望职位：{{position}}{{/if}}</p>
+      <p>{{#if city}}期望城市：{{city}}{{/if}}</p>
+      <p>{{#if industry}}期望行业：{{industry}}{{/if}}</p>
+      <p>{{#if salary}}期望薪资：{{salary}}{{/if}}</p>
+    </div>
+  </section>
+
+  <section class="bj-section" data-bj-section="self_evaluation">
+    <h2>自我评价</h2>
+    <div class="bj-body" data-bj-body>
+      <div data-bj-rich="preference"></div>
+    </div>
+  </section>
+
+  <section class="bj-section" data-bj-section="work_experiences">
+    <h2>工作经历</h2>
+    <p>{{#work_experiences}}</p>
+    <article class="bj-entry">
+      <h3>{{#if title}}{{title}}{{/if}}</h3>
+      <div class="bj-meta">
+        <p>{{#if subtitle}}{{subtitle}}{{/if}}</p>
+        <p>{{#if auxiliary}}{{auxiliary}}{{/if}}</p>
+        <p class="bj-dates">{{#if date_range}}{{date_range}}{{/if}}</p>
+      </div>
+      <div class="bj-body" data-bj-body>
+        <div data-bj-rich="detail"></div>
+      </div>
+    </article>
+    <p>{{/work_experiences}}</p>
+  </section>
+
+  <section class="bj-section" data-bj-section="projects">
+    <h2>项目经历</h2>
+    <p>{{#projects}}</p>
+    <article class="bj-entry">
+      <h3>{{#if title}}{{title}}{{/if}}</h3>
+      <div class="bj-meta">
+        <p>{{#if subtitle}}{{subtitle}}{{/if}}</p>
+        <p>{{#if auxiliary}}{{auxiliary}}{{/if}}</p>
+        <p class="bj-dates">{{#if date_range}}{{date_range}}{{/if}}</p>
+      </div>
+      <div class="bj-body" data-bj-body>
+        <div data-bj-rich="detail"></div>
+        <div data-bj-rich="secondary_detail"></div>
+      </div>
+    </article>
+    <p>{{/projects}}</p>
+  </section>
+
+  <section class="bj-section" data-bj-section="educations">
+    <h2>教育经历</h2>
+    <p>{{#educations}}</p>
+    <article class="bj-entry">
+      <h3>{{#if title}}{{title}}{{/if}}</h3>
+      <div class="bj-meta">
+        <p>{{#if subtitle}}{{subtitle}}{{/if}}</p>
+        <p>{{#if auxiliary}}{{auxiliary}}{{/if}}</p>
+        <p class="bj-dates">{{#if date_range}}{{date_range}}{{/if}}</p>
+      </div>
+      <div class="bj-body" data-bj-body>
+        <div data-bj-rich="detail"></div>
+        <div data-bj-rich="secondary_detail"></div>
+      </div>
+    </article>
+    <p>{{/educations}}</p>
+  </section>
+
+  <section class="bj-section" data-bj-section="skills">
+    <h2>专业技能</h2>
+    <p>{{#skills}}</p>
+    <article class="bj-entry">
+      <h3>{{name}}</h3>
+      <div class="bj-body" data-bj-body>
+        <div data-bj-rich="detail"></div>
+      </div>
+    </article>
+    <p>{{/skills}}</p>
+  </section>
+
+  <section class="bj-section" data-bj-section="certifications">
+    <h2>证书与荣誉</h2>
+    <p>{{#certifications}}</p>
+    <article class="bj-entry">
+      <h3>{{title}}</h3>
+      <div class="bj-meta">
+        <p>{{#if subtitle}}{{subtitle}}{{/if}}</p>
+        <p class="bj-dates">{{#if date_range}}{{date_range}}{{/if}}</p>
+      </div>
+    </article>
+    <p>{{/certifications}}</p>
+  </section>
+</main>
+</body>
+</html>

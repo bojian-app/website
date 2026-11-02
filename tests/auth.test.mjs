@@ -1193,10 +1193,11 @@ test("控制台接口：登录与同源保护、上传用途限制、所有权�
     ).status,
     400,
   );
+  assert.equal((await request(api + "uploads", {cookies, body: {filename: "template.docx", size_bytes: 128}})).status, 400);
   assert.equal(creatorUploads.size, 0);
   const ticketResponse = await request(api + "uploads", {
     cookies,
-    body: { filename: "template.docx", size_bytes: 4, purpose: "IDENTITY_ID" },
+    body: { filename: "template.html", size_bytes: 64, purpose: "IDENTITY_ID" },
   });
   assert.equal(ticketResponse.status, 201);
   const ticket = await ticketResponse.json();
@@ -1205,8 +1206,8 @@ test("控制台接口：登录与同源保护、上传用途限制、所有权�
     form.append(key, value);
   form.append(
     "file",
-    new Blob([new Uint8Array([80, 75, 3, 4])]),
-    "template.docx",
+    new Blob(["<!doctype html><html><body>{{name}}</body></html>"]),
+    "template.html",
   );
   assert((await fetch(ticket.upload_url, { method: "POST", body: form })).ok);
   assert.equal(
@@ -1506,7 +1507,7 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   ]);
   await guide.waitForURL(base + "/console/template-guide");
   await guide
-    .getByRole("heading", { name: "完整字段表", exact: true })
+    .getByRole("heading", { name: "4. 基础字段", exact: false })
     .waitFor();
   assert.equal(
     await guide
@@ -1588,13 +1589,12 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   assert.equal(response.status(), 200);
   assert.equal(response.headers()["content-type"], "application/pdf");
   assert.match(response.headers()["content-disposition"], /^inline;/);
-  await pdfPage.waitForURL(pdfUrl);
-  await pdfPage.waitForLoadState("load");
-  assert.equal(
-    downloads,
-    0,
-    "PDF opens in a new tab without an automatic download",
-  );
+  // The headless shell has no built-in PDF viewer; headers are checked above.
+  if (!process.env.BOJIAN_TEST_BROWSER?.includes("headless-shell")) {
+    await pdfPage.waitForURL(pdfUrl);
+    await pdfPage.waitForLoadState("load");
+    assert.equal(downloads, 0, "PDF opens inline in a browser with a PDF viewer");
+  }
   assert.equal(page.url(), base + "/console");
   await pdfPage.close();
 
@@ -1633,10 +1633,9 @@ test("真实浏览器：控制台入口、草稿上传、实名认证、驳回�
   ).length;
   await page.getByRole("button", { name: "上传模板", exact: true }).click();
   await page.locator("#template-file").setInputFiles({
-    name: "失败测试.docx",
-    mimeType:
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    buffer: Buffer.from([80, 75, 3, 4]),
+    name: "失败测试.html",
+    mimeType: "text/html",
+    buffer: Buffer.from("<!doctype html><html><body>{{name}}</body></html>"),
   });
   await page.getByRole("button", { name: "保存草稿", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "文件上传失败" }).waitFor();

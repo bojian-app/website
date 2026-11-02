@@ -2300,6 +2300,8 @@ body:has(.console-application) {
   line-height: 1.9;
   margin-top: 12px;
 }
+.guide-heading a { color: #5278cf; text-decoration: underline; text-underline-offset: 3px; }
+@media (min-width: 901px) { .guide-navigation { max-height: calc(100dvh - 160px); overflow-y: auto; scrollbar-width: thin; } }
 .guide-badges {
   display: flex;
   flex-wrap: wrap;
