@@ -79,18 +79,12 @@
   margin-bottom: 24px;
 }
 .identity span {
-  width: 110px;
-  height: 28px;
-  background: #e8ecf0;
-  border-radius: 6px;
-  filter: blur(3px);
+  font-size: 20px;
+  font-weight: 600;
 }
-.identity i {
-  width: 56px;
-  height: 72px;
-  background: #edf0f3;
-  border-radius: 6px;
-  filter: blur(3px);
+.privateField {
+  margin: 5px 0;
+  font-weight: 600;
 }
 .entry + .entry {
   margin-top: 22px;
@@ -103,6 +97,41 @@
 .field {
   position: relative;
   margin: 5px 0;
+}
+.entryMeta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  margin: 5px 0;
+}
+.entryDetails {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 0 8px;
+  min-width: 0;
+}
+.entryDetails > .field {
+  min-width: 0;
+  max-width: 100%;
+}
+.entryMeta .field {
+  margin: 0;
+}
+.dateRange {
+  display: flex;
+  align-items: start;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.dateRange > .field > p {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.dateRange .notes {
+  width: 0;
+  min-width: 100%;
 }
 .field p[role="button"] {
   cursor: text;

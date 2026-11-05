@@ -83,11 +83,27 @@ before(async () => {
           work_experiences: [
             {
               position: "前端开发",
+              start_date: "2022-07",
+              end_date: "2024-06",
               description: "负责开发网站，提升页面性能。",
             },
           ],
           projects: [
-            { role: "项目负责人", description: "设计并交付移动应用。" },
+            {
+              name: "协作项目名称",
+              role: "项目负责人",
+              start_date: "2023-01",
+              end_date: "2024-06",
+              description: "设计并交付移动应用。",
+            },
+          ],
+          educations: [
+            {
+              field_of_study: "计算机科学与技术",
+              degree: "本科",
+              start_date: "2018-09",
+              end_date: "2022-06",
+            },
           ],
           skills: [
             { name: "TypeScript", description: "熟悉 React 与自动化测试" },
@@ -152,6 +168,25 @@ test("External link assigns private guest cookie, supports rewrite/retry/compari
   await page
     .getByText("负责开发网站，提升页面性能。", { exact: true })
     .waitFor();
+  await page
+    .locator('[data-field="projects.0.name"]')
+    .getByText("协作项目名称", { exact: true })
+    .waitFor();
+  assert.deepEqual(
+    await page.locator('[aria-label="个人信息已隐藏"] span').allTextContents(),
+    ["***", "***"],
+  );
+  assert.equal(
+    await page.locator('[aria-label="隐私信息已隐藏"]').first().innerText(),
+    "***",
+  );
+  assert.equal(
+    await page
+      .locator('[aria-label="个人信息已隐藏"] span')
+      .first()
+      .evaluate((el) => getComputedStyle(el).filter),
+    "none",
+  );
   assert.equal(await page.locator(".site-header,.site-footer").count(), 0);
   assert.equal(await page.getByRole("link", { name: "登录" }).count(), 0);
   const cookies = await context.cookies();

@@ -43,7 +43,7 @@ const sections = [
   [
     "projects",
     "项目经历",
-    ["role", "start_date", "end_date", "description", "achievements"],
+    ["name", "role", "start_date", "end_date", "description", "achievements"],
   ],
   [
     "educations",
@@ -351,8 +351,8 @@ export function ResumeGuestReview({ token }: { token: string }) {
             onKeyUp={selectText}
           >
             <div className={styles.identity} aria-label="个人信息已隐藏">
-              <span />
-              <i />
+              <span>***</span>
+              <span>***</span>
             </div>
             {sections.map(([key, title, fields]) => {
               const source = review.snapshot[key];
@@ -371,16 +371,73 @@ export function ResumeGuestReview({ token }: { token: string }) {
               return (
                 <section key={key}>
                   <h2>{title}</h2>
-                  {entries.map((row, index) => (
-                    <div className={styles.entry} key={index}>
-                      {fields.map((name) =>
-                        field(
-                          `${key}${Array.isArray(source) ? `.${index}` : ""}.${name}`,
-                          row[name],
-                        ),
-                      )}
-                    </div>
-                  ))}
+                  {entries.map((row, index) => {
+                    const prefix = `${key}${Array.isArray(source) ? `.${index}` : ""}`;
+                    const metaFields: string[] =
+                      key === "projects"
+                        ? ["role"]
+                        : key === "educations"
+                          ? ["field_of_study", "degree"]
+                          : key === "work_experiences"
+                            ? ["position"]
+                            : [];
+                    const hasMeta = metaFields.length > 0;
+                    const hasStart =
+                      typeof row.start_date === "string" &&
+                      !!row.start_date.trim();
+                    const hasEnd =
+                      typeof row.end_date === "string" && !!row.end_date.trim();
+                    const current =
+                      key === "work_experiences" &&
+                      row.current === true &&
+                      !hasEnd;
+                    const metadata = hasMeta && (
+                      <div className={styles.entryMeta}>
+                        <div className={styles.entryDetails}>
+                          {metaFields.map((name) =>
+                            field(`${prefix}.${name}`, row[name]),
+                          )}
+                        </div>
+                        <div className={styles.dateRange}>
+                          {field(`${prefix}.start_date`, row.start_date)}
+                          {hasStart && (hasEnd || current) && <span>~</span>}
+                          {field(`${prefix}.end_date`, row.end_date)}
+                          {current && <span>至今</span>}
+                        </div>
+                      </div>
+                    );
+                    return (
+                      <div className={styles.entry} key={index}>
+                        {[
+                          "work_experiences",
+                          "educations",
+                          "certifications",
+                        ].includes(key) && (
+                          <p
+                            className={styles.privateField}
+                            aria-label="隐私信息已隐藏"
+                          >
+                            ***
+                          </p>
+                        )}
+                        {key === "projects" &&
+                          field(`${prefix}.name`, row.name)}
+                        {metadata}
+                        {fields
+                          .filter(
+                            (name) =>
+                              !(key === "projects" && name === "name") &&
+                              !(
+                                hasMeta &&
+                                (metaFields.includes(name) ||
+                                  name === "start_date" ||
+                                  name === "end_date")
+                              ),
+                          )
+                          .map((name) => field(`${prefix}.${name}`, row[name]))}
+                      </div>
+                    );
+                  })}
                 </section>
               );
             })}

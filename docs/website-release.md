@@ -1,5 +1,32 @@
 # 官网发布记录
 
+## 2026-11-03 · website-share-dates-20261103-r1
+
+北京时间 18:42 发布。工作/项目岗位及教育经历专业/学历与日期同排，起止时间使用 `~`，保留原字段的选中、评论与改写。隐私星号和项目名称展示保持正常。
+
+镜像 ID：`sha256:703d573220c92d7b5b544d33910e6d7a9009d393fff0107a33f3aaea48b74db7`。生产构建和 3 项既有分享流程检查通过；本地成品镜像 9 项及用户真实链接 15 项同排检查通过，覆盖桌面、390px、320px，确认无横向溢出和浏览器异常。真实链接仅打开评论框验证字段，未提交评论。服务 healthy；首页和 API health/ready 返回 200；其余容器未变。
+
+证据：`artifacts/website-share-dates-20261103-r1/`。回滚：`sh /home/ubuntu/bojian-releases/website-share-dates-20261103-r1/rollback.sh`；后续整体 Compose 操作保留该发布目录下的 `compose.override.yaml`。本轮临时预览容器已移除，保留镜像、截图和日志用于回退与验收。
+
+
+## 2026-11-03 · 历史外链名称补回
+
+用户反馈的历史链接已原位修复：补回链接快照及 3 份已有游客快照的 3 个项目名称，保持 URL 和批注不变。确认原简历在分享后未修改，且公开项目字段逐项一致后才恢复名称；没有整体刷新简历。使用修复前同一游客会话访问真实官网，接口及页面均显示 3 个名称，隐私字段仍为 `***`。本次为单个历史链接的数据修复，无新增官网/接口版本。证据见 `artifacts/share-name-repair-20261103/`。
+
+
+## 2026-11-03 · website-share-stars-20261103-r1
+
+官网于北京时间 18:31 发布至 https://bojian.kelance.cn ，配套 API `share-stars-20261103-r1` 于 18:29 发布。分享页以 `***` 显示隐私占位，项目名称正常展示并支持批注；API 外链快照保留项目名称。无数据库迁移，历史快照中已删除的名称需停用旧链接后重新生成。
+
+官网镜像 ID：`sha256:7f2df27b56844eeb558d25192c299b876d135bbbfd42194be42b4b62186c32a6`。生产构建、本地成品镜像及线上桌面/手机分享页面显示检查通过；显示检查使用浏览器拦截的虚构数据，不创建真实简历或游客。生产 smoke 覆盖首页、控制台入口、二维码创建/轮询/解码、公共页面、API health/ready 与后台入口，未发现浏览器或 HTTP 错误。未进行真人账号人工验收。
+
+两项服务均 healthy，每次切换只替换对应服务，其他容器保持不变。保留旧镜像、数据库备份及回滚脚本；发布前仅清理超过一周未使用的构建缓存，释放约 5 GB。第一次官网预检因误用镜像配置摘要作为镜像 ID 而中止，未切换生产；恢复成品镜像实际 ID 后校验与发布成功。浏览器 smoke 使用已安装的 Playwright headless shell。
+
+官网回滚：`sh /home/ubuntu/bojian-releases/website-share-stars-20261103-r1/rollback.sh`。
+接口回滚：`sh /home/ubuntu/bojian-releases/share-stars-20261103-r1/rollback.sh`。
+后续整体 Compose 操作需保留两项最新覆盖文件。证据与截图见 `artifacts/website-share-stars-20261103-r1/`，API 证据见 app-server 的同名发布记录。
+
+
 目标：https://bojian.kelance.cn 。用户明确授权上线并再次确认目标域名。
 
 ## 当前版本：2026-10-22 · website-20261022-r12
