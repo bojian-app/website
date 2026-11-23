@@ -22,24 +22,10 @@
   padding: 0 max(24px, calc((100vw - 900px) / 2));
   gap: 20px;
 }
-.header > div {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-width: 0;
-}
 .brand {
   font-weight: 700;
   color: #2867ee;
   white-space: nowrap;
-}
-.header h1 {
-  font-size: 17px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin: 0;
 }
 .guest {
   font-size: 12px;
@@ -104,6 +90,29 @@
   align-items: start;
   gap: 12px;
   margin: 5px 0;
+}
+.expectationDetails {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 14px;
+}
+.expectationDetails > .field {
+  max-width: 100%;
+  margin: 0;
+}
+.expectationDetails > .field > p {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.expectationDetails svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  align-self: flex-start;
+  margin-top: 0.35em;
+  color: #68778c;
 }
 .entryDetails {
   display: flex;
@@ -287,9 +296,6 @@
   .header {
     padding: 0 16px;
   }
-  .header > div {
-    gap: 12px;
-  }
   .paper {
     padding: 24px 22px;
     min-height: 800px;
@@ -301,9 +307,6 @@
   }
   .fieldTools {
     font-size: 11px;
-  }
-  .header h1 {
-    max-width: 45vw;
   }
   .guest {
     font-size: 11px;

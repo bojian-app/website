@@ -38,13 +38,20 @@ before(async () => {
     if (!/^[A-Za-z0-9_-]{43}$/.test(credential || ""))
       return json(res, 401, { error: { message: "缺少游客凭据" } });
     if (req.url.endsWith("/session")) {
-      if (!visitors.has(credential))
-        visitors.set(credential, { id: visitors.size + 10, items: [] });
+      if (!visitors.has(credential)) {
+        const id = visitors.size + 10;
+        visitors.set(credential, {
+          id,
+          display_name: `游客 ${id.toString(16).toUpperCase().padStart(6, "0")}`,
+          items: [],
+        });
+      }
+      const visitor = visitors.get(credential);
       return json(res, 200, {
         data: {
-          id: visitors.get(credential).id,
+          id: visitor.id,
           role: "GUEST",
-          display_name: "游客 ABC123",
+          display_name: visitor.display_name,
         },
       });
     }
@@ -67,7 +74,7 @@ before(async () => {
         ...body,
         id: visitor.items.length + 1,
         reviewer_id: visitor.id,
-        reviewer_name: "游客 ABC123",
+        reviewer_name: visitor.display_name,
         status: "PENDING",
         moderation_status: "VISIBLE",
       };
@@ -79,7 +86,12 @@ before(async () => {
         title: "测试简历",
         can_review: true,
         snapshot: {
-          job_expectation: { position: "前端工程师", city: "广州" },
+          job_expectation: {
+            position: "前端工程师",
+            city: "广州市、深圳市",
+            industry: "软件开发服务",
+            salary: "15000",
+          },
           work_experiences: [
             {
               position: "前端开发",
@@ -257,6 +269,39 @@ test("External link assigns private guest cookie, supports rewrite/retry/compari
   await context.close();
 });
 
+test("Guest number persists on reload and differs across browser cookie stores", async () => {
+  const first = await browser.newContext();
+  const second = await browser.newContext();
+  async function readGuest(page) {
+    const label = page.locator("main header").getByText(/^游客 /);
+    await label.waitFor();
+    const { value } = (await page.context().cookies()).find(
+      (cookie) => cookie.name === "bojian_resume_guest",
+    );
+    const name = await label.innerText();
+    assert.equal(name, visitors.get(value).display_name);
+    return { credential: value, name };
+  }
+  try {
+    const pages = await Promise.all([first.newPage(), second.newPage()]);
+    await Promise.all(
+      pages.map((page) => page.goto(`${base}/resume-review/${token}`)),
+    );
+    const [a, b] = await Promise.all(pages.map(readGuest));
+    assert.notEqual(a.credential, b.credential);
+    assert.notEqual(a.name, b.name);
+    await pages[0].reload();
+    assert.deepEqual(await readGuest(pages[0]), a);
+    await first.clearCookies();
+    await pages[0].reload();
+    const fresh = await readGuest(pages[0]);
+    assert.notEqual(fresh.credential, a.credential);
+    assert.notEqual(fresh.name, a.name);
+  } finally {
+    await Promise.all([first.close(), second.close()]);
+  }
+});
+
 test("Mobile supports selected text comments and rejects cross-origin writes", async () => {
   const context = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -266,6 +311,30 @@ test("Mobile supports selected text comments and rejects cross-origin writes", a
     page = await context.newPage();
   await page.goto(`${base}/resume-review/${token}`);
   await page.locator('[data-field="projects.0.description"]').waitFor();
+  const details = page.locator(
+    '[data-field="job_expectation.city"], [data-field="job_expectation.industry"], [data-field="job_expectation.salary"]',
+  );
+  assert.equal(await details.locator('svg[aria-hidden="true"]').count(), 3);
+  const rowTops = () =>
+    details.evaluateAll((items) =>
+      items.map((item) => item.getBoundingClientRect().top),
+    );
+  const wide = await rowTops();
+  assert.deepEqual(wide, [wide[0], wide[0], wide[0]]);
+  await page.setViewportSize({ width: 320, height: 844 });
+  const narrow = await rowTops();
+  assert.ok(narrow[2] > narrow[0]);
+  await details.last().click();
+  const selectionBar = page.getByRole("complementary", {
+    name: "选中文字操作",
+  });
+  await selectionBar.getByText("15000", { exact: true }).waitFor();
+  await selectionBar.getByRole("button", { name: "取消选择" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.match(
+    await page.locator("main header").innerText(),
+    /^博简\s+游客 [0-9A-F]{6}$/,
+  );
   await page.evaluate(() => {
     const element = document.querySelector(
       '[data-field="projects.0.description"]',

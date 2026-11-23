@@ -4,6 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./resume-guest-review.module.css";
 
 type Row = Record<string, unknown>;
+const expectationIcons = {
+  city: "M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Zm-5 0a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z",
+  industry:
+    "M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M3 8h18v12H3Zm0 5c5 2 13 2 18 0M12 13v3",
+  salary: "M3 6h18v12H3Zm6 2 3 4 3-4m-6 4h6m-6 2h6m-3-2v4",
+} as const;
+const expectationDetails = ["city", "industry", "salary"] as const;
 type RecordItem = {
   id: number;
   field_path: string;
@@ -18,7 +25,6 @@ type RecordItem = {
   parent_id?: number;
 };
 type Review = {
-  title: string;
   snapshot: Record<string, Row | Row[]>;
   can_review: boolean;
 };
@@ -33,7 +39,7 @@ const sections = [
   [
     "job_expectation",
     "求职意向",
-    ["position", "city", "industry", "salary", "preference"],
+    ["position", ...expectationDetails, "preference"],
   ],
   [
     "work_experiences",
@@ -225,7 +231,7 @@ export function ResumeGuestReview({ token }: { token: string }) {
       setBusy(false);
     }
   }
-  function field(path: string, original: unknown) {
+  function field(path: string, original: unknown, iconPath?: string) {
     if (typeof original !== "string" || !original.trim()) return null;
     const items = records.filter((item) => item.field_path === path);
     const rewrite = items.find(
@@ -270,6 +276,19 @@ export function ResumeGuestReview({ token }: { token: string }) {
             }
           }}
         >
+          {iconPath && (
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d={iconPath} />
+            </svg>
+          )}
           {shown}
         </p>
         {rewrite && (
@@ -326,10 +345,7 @@ export function ResumeGuestReview({ token }: { token: string }) {
   return (
     <main id="main" className={styles.page}>
       <header className={styles.header}>
-        <div>
-          <span className={styles.brand}>博简</span>
-          <h1>{review?.title || "简历指点"}</h1>
-        </div>
+        <span className={styles.brand}>博简</span>
         {guest && <span className={styles.guest}>{guest.display_name}</span>}
       </header>
       {error && (
@@ -373,6 +389,23 @@ export function ResumeGuestReview({ token }: { token: string }) {
                   <h2>{title}</h2>
                   {entries.map((row, index) => {
                     const prefix = `${key}${Array.isArray(source) ? `.${index}` : ""}`;
+                    if (key === "job_expectation") {
+                      return (
+                        <div className={styles.entry} key={index}>
+                          {field(`${prefix}.position`, row.position)}
+                          <div className={styles.expectationDetails}>
+                            {expectationDetails.map((name) =>
+                              field(
+                                `${prefix}.${name}`,
+                                row[name],
+                                expectationIcons[name],
+                              ),
+                            )}
+                          </div>
+                          {field(`${prefix}.preference`, row.preference)}
+                        </div>
+                      );
+                    }
                     const metaFields: string[] =
                       key === "projects"
                         ? ["role"]
