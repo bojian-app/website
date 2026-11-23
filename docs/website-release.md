@@ -1,5 +1,17 @@
 # 官网发布记录
 
+## 2026-11-23 · website-20261123-r1
+
+北京时间 12:19 前后发布。首页由风景单屏页换为新版产品首页：自我改写的简历纸面首屏、“一句话，五步写好”滚动叙事、编号目录式功能标签页、扇形实机截图、批注墙、常见问题与收尾下载区，全站文案精简为一句标题加短句。同时提交 11-10 已上线但未入库的创作者控制台下线改动。
+
+镜像 ID：`sha256:b7c1d43754bc5d0c6612d5061d24e24c1f40dc6d31e7a68d622e4db2baca47d6`；镜像包 SHA256：`98d8771538ae72aa23c87e1a78143ed4a9842dbc27a632df198a8a7b1e35c959`；源码 `08d0db7`（分支 `website-20261123-r1`，工作区无未提交改动）。上一镜像：`sha256:a4500487fa11fab1e046a0035274afd49b86aae89abad07445ea8bc46b6575f5`。
+
+构建说明：本机 colima 下 amd64 模拟（Rosetta 与 QEMU 均如此）运行 pnpm 11 时，依赖安装完成后退出触发 libuv `uv__io_poll` 断言并使构建卡住。Dockerfile 仅在退出码 134 且已写入 `node_modules/.modules.yaml` 时放行，构建步骤直接调用 `next build`。本次构建时 colima 已关闭 Rosetta（`rosetta: false`）。
+
+验证：生产构建、6 项首页回归与 3 项外链测试通过；本地成品镜像 smoke 9 项通过；线上 smoke 12 项通过（含 API health/ready 与后台入口），无浏览器异常或 HTTP 错误。容器 healthy、重启 0，其余容器未变。证据：`artifacts/website-20261123-r1/`。
+
+回滚：`sh /home/ubuntu/bojian-releases/website-20261123-r1/rollback.sh`；后续整体 Compose 操作保留该发布目录下的 `compose.override.yaml`。
+
 ## 2026-11-03 · website-share-dates-20261103-r1
 
 北京时间 18:42 发布。工作/项目岗位及教育经历专业/学历与日期同排，起止时间使用 `~`，保留原字段的选中、评论与改写。隐私星号和项目名称展示保持正常。
