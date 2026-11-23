@@ -4,11 +4,13 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm install --global pnpm@11.24.0 --ignore-scripts --no-audit --no-fund
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# Under amd64 emulation pnpm 11 aborts on exit (libuv uv__io_poll assertion) after a
+# completed install. Accept only that SIGABRT, and only once pnpm wrote its completion marker.
+RUN ulimit -c 0; pnpm install --frozen-lockfile || { rc=$?; [ "$rc" -eq 134 ] && test -f node_modules/.modules.yaml; }
 
 FROM dependencies AS builder
 COPY . .
-RUN NODE_OPTIONS=--max-old-space-size=1536 pnpm build
+RUN NODE_OPTIONS=--max-old-space-size=1536 node node_modules/next/dist/bin/next build
 
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
