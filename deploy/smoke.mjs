@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
-import jsQR from "jsqr";
-import { PNG } from "pngjs";
 const base = process.env.BOJIAN_SMOKE_ORIGIN || "https://bojian.kelance.cn";
 const destination =
   process.env.BOJIAN_SMOKE_ARTIFACTS || "artifacts/deploy-smoke";
@@ -28,130 +26,92 @@ try {
   });
   const home = await page.goto(base, { waitUntil: "networkidle" });
   assert.equal(home.status(), 200);
+  const heading = page.getByRole("heading", { level: 1 });
   assert.equal(
-    await page.getByRole("heading", { level: 1 }).innerText(),
-    "助力失业者找到好的归属",
+    (await heading.innerText()).replace(/\s/g, ""),
+    "从经历到简历，一部手机搞定。",
   );
+  const screens = page.locator("#screens");
+  const selectors = screens.locator("button[aria-pressed]");
+  const selectedImages = new Set();
+  assert((await selectors.count()) >= 3);
+  for (const button of await selectors.all()) {
+    await button.click();
+    await button.and(screens.locator('[aria-pressed="true"]')).waitFor();
+    assert.equal(
+      await screens.getByRole("button", { pressed: true }).count(),
+      1,
+    );
+    const shot = screens.locator("img[data-screen-image]:visible");
+    await shot.scrollIntoViewIfNeeded();
+    selectedImages.add(
+      await shot.evaluate(async (el) => {
+        await el.decode();
+        if (
+          !el.alt.trim() ||
+          !el.naturalWidth ||
+          el.naturalWidth >= el.naturalHeight
+        )
+          throw Error("无有效的竖屏产品截图");
+        return el.currentSrc;
+      }),
+    );
+  }
+  assert.equal(selectedImages.size, await selectors.count());
+  await selectors.first().click();
+  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
   await page.screenshot({
     path: destination + "/home-desktop.png",
     fullPage: true,
   });
-  checks.push("desktop homepage");
-  assert(
-    await page
-      .locator(".landscape-image")
-      .evaluate((image) => image.complete && image.naturalWidth > 0),
-  );
-  assert.equal(await page.locator("main button, main a, main p").count(), 0);
-  assert.equal(await page.getByRole("button", { name: "下载 App" }).count(), 1);
-  assert.deepEqual(await page.locator(".landscape-background").boundingBox(), {
-    x: 0,
-    y: 0,
-    width: 1440,
-    height: 900,
-  });
-  const notice = page.getByRole("status");
-  await page
-    .locator("header")
-    .getByRole("button", { name: "下载 App" })
-    .click();
-  await notice.waitFor();
-  assert.equal(await notice.innerText(), "暂未上线");
-  assert.equal(await page.locator(".download-popover").count(), 0);
-  await page.screenshot({
-    path: destination + "/notification-desktop.png",
-    fullPage: true,
-  });
-  await notice.waitFor({ state: "hidden" });
-  checks.push(
-    "full viewport background, single header actions and download notification",
-  );
-  await page.setViewportSize({ width: 390, height: 844 });
-  assert.deepEqual(await page.locator(".landscape-background").boundingBox(), {
-    x: 0,
-    y: 0,
-    width: 390,
-    height: 844,
-  });
-  assert(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  );
-  await page.screenshot({
-    path: destination + "/home-mobile.png",
-    fullPage: true,
-  });
-  checks.push("mobile homepage");
-  await page
-    .locator("header")
-    .getByRole("button", { name: "下载 App" })
-    .click();
-  await notice.waitFor();
-  await page.screenshot({
-    path: destination + "/notification-mobile.png",
-    fullPage: true,
-  });
-  await page.keyboard.press("Escape");
-  await notice.waitFor({ state: "hidden" });
-  await page.goto(base + "/console", { waitUntil: "domcontentloaded" });
-  const appHeader = await page.locator(".header-inner").boundingBox();
-  assert.equal(appHeader.height, 56);
-  assert.equal(appHeader.width, 390);
-  assert.equal(appHeader.x, 0);
-  assert.deepEqual(await page.locator(".console-application").boundingBox(), {x: 0, y: 56, width: 390, height: 788});
-  assert.equal(await page.locator(".site-footer").count(), 0);
+  checks.push("desktop homepage and screen gallery");
 
-  await page.screenshot({
-    path: destination + "/console-mobile.png",
-    fullPage: true,
-  });
-  checks.push("full viewport console application shell and compact header");
-  await page.getByRole("link", { name: "登录并进入控制台" }).click();
-  await page.waitForURL(
-    (url) =>
-      url.pathname === "/login" && url.searchParams.get("next") === "/console",
-    { waitUntil: "domcontentloaded" },
-  );
-  checks.push("anonymous console login link preserves return target");
-  await page.screenshot({
-    path: destination + "/login-mobile.png",
-    fullPage: true,
-  });
-  const creation = page.waitForResponse(
-    (r) =>
-      r.url() === base + "/web-api/auth/qr" && r.request().method() === "POST",
-  );
-  await page.getByRole("checkbox").check();
-  const result = await creation;
-  assert.equal(result.status(), 201);
-  const qr = await result.json();
-  assert(qr.qrDataUrl.startsWith("data:image/svg+xml;base64,"));
-  const status = await page.waitForResponse((r) =>
-    r.url().startsWith(base + "/web-api/auth/qr?"),
-  );
-  assert.equal(status.status(), 200);
-  assert.equal((await status.json()).status, "waiting");
-  checks.push("production QR creation and polling");
-  await page.locator(".qr-image").evaluate((image) => image.decode());
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    const bitmap = PNG.sync.read(await page.locator(".qr-stage").screenshot());
-    const decoded = jsQR(
-      new Uint8ClampedArray(bitmap.data),
-      bitmap.width,
-      bitmap.height,
+  await page.locator('main a[href="#features"]').first().click();
+  const tabs = page.locator("#features").getByRole("tab");
+  assert((await tabs.count()) >= 5);
+  await tabs.last().click();
+  await tabs.last().and(page.locator('[aria-selected="true"]')).waitFor();
+  assert(await page.locator("#features").getByRole("tabpanel").isVisible());
+  assert(await page.locator("#community h2").isVisible());
+  const closedQuestion = page.locator("#questions details:not([open])").first();
+  await closedQuestion.locator("summary").click();
+  assert((await page.locator("#questions details[open]").count()) > 0);
+  checks.push("interactive features and FAQ");
+
+  const download = page
+    .locator(".site-header")
+    .getByRole("button", { name: "下载 App" });
+  const notice = page
+    .getByRole("status")
+    .filter({ hasText: "官网暂未开放下载" });
+  for (const [label, width, height] of [
+    ["desktop", 1440, 900],
+    ["mobile", 390, 844],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await page.goto(base, { waitUntil: "networkidle" });
+    assert(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
     );
-    assert(decoded, `Blue QR decodes at ${width}px`);
-    assert.match(decoded.data, /^https:\/\/bojian\.kelance\.cn\/app-login#/);
-    checks.push(`blue QR decodes at ${width}px`);
+    if (label === "mobile")
+      await page.screenshot({
+        path: destination + "/home-mobile.png",
+        fullPage: true,
+      });
+    await download.click();
+    await notice.waitFor();
+    await page.screenshot({
+      path: destination + "/notification-" + label + ".png",
+    });
+    await page.keyboard.press("Escape");
+    await notice.waitFor({ state: "hidden" });
+    checks.push(label + " layout and download notice");
   }
-  await page.getByRole("checkbox").uncheck();
   for (const path of [
     "/privacy",
     "/terms",
-    "/app-login",
-    "/console/template-guide",
     "/robots.txt",
     "/sitemap.xml",
     "/opengraph-image",

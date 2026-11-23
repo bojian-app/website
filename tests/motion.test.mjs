@@ -3,12 +3,13 @@ import { after, before, test } from "node:test";
 import { createServer } from "node:net";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 let server, browser, base;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 before(async () => {
   assert(existsSync(".next/BUILD_ID"), "Run pnpm build first");
+  mkdirSync("artifacts", { recursive: true });
   const probe = createServer();
   probe.listen(0, "127.0.0.1");
   await once(probe, "listening");
@@ -42,7 +43,7 @@ before(async () => {
   for (let i = 0; i < 100; i++) {
     if (server.exitCode !== null) throw Error(log);
     try {
-      if ((await fetch(base + "/web-api/auth/session")).ok) {
+      if ((await fetch(base + "/robots.txt")).ok) {
         ready = true;
         break;
       }
@@ -65,56 +66,96 @@ after(async () => {
   }
 });
 
-test("山湖首页加载指定背景，主文案可见且不加载旧建筑图", async () => {
+test("产品首页可跳转到流程、功能、实机界面、社区与常见问题", async () => {
   const page = await browser.newPage();
   const errors = [];
-  const backgroundRequests = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("request", (request) => {
-    if (request.url().includes("white-architecture"))
-      backgroundRequests.push(request.url());
-  });
   try {
-    await page.goto(base, { waitUntil: "networkidle" });
-    const background = page.locator(".landscape-image");
-    assert(
-      await background.evaluate(
-        (image) => image.complete && image.naturalWidth > 0,
+    const response = await page.goto(base, { waitUntil: "networkidle" });
+    assert.equal(response.status(), 200);
+    assert.equal(
+      (await page.getByRole("heading", { level: 1 }).innerText()).replace(
+        /\s/g,
+        "",
       ),
+      "每段经历，都值得好好写下。",
     );
-    assert((await background.getAttribute("src")).includes("moraine-lake"));
-    assert.deepEqual(backgroundRequests, []);
-    assert.equal(
-      await page.getByRole("heading", { level: 1 }).innerText(),
-      "助力失业者找到好的归属",
-    );
-    assert.equal(
-      await page
-        .locator("body")
-        .evaluate((element) => getComputedStyle(element).backgroundColor),
-      "rgb(255, 255, 255)",
-    );
-    assert(!/bojian/i.test(await page.locator("body").innerText()));
-    assert.equal(await page.locator(".sphere-body").count(), 0);
-    assert.equal(await page.locator("main button, main a, main p").count(), 0);
-    assert.equal(
-      await page.getByRole("button", { name: "下载 App" }).count(),
-      1,
-    );
-    assert.equal(
-      await page.getByRole("link", { name: "登录博简", exact: true }).count(),
-      1,
-    );
+    await page.locator('main a[href="#features"]').first().click();
+    await page.waitForURL(base + "/#features");
+    for (const area of ["story", "features", "screens", "community", "questions"]) {
+      assert(
+        await page
+          .locator(`#${area}`)
+          .getByRole("heading", { level: 2 })
+          .first()
+          .isVisible(),
+        area,
+      );
+    }
     assert.deepEqual(errors, []);
   } finally {
     await page.close();
   }
 });
 
-test("各种尺寸背景铺满视口，仅顶部保留操作入口", async () => {
+test("实机截图库支持点击和键盘切换，图片与说明同步", async () => {
+  const page = await browser.newPage({ reducedMotion: "reduce" });
+  try {
+    await page.goto(base, { waitUntil: "networkidle" });
+    const gallery = page.locator("#screens");
+    const buttons = gallery.locator("button[aria-pressed]");
+    const count = await buttons.count();
+    assert(count >= 3);
+    const images = new Set(),
+      descriptions = new Set();
+    for (const [i, button] of (await buttons.all()).entries()) {
+      if (i % 2 === 0) {
+        await button.click();
+      } else {
+        await button.focus();
+        await page.keyboard.press("Space");
+      }
+      await button.and(gallery.locator('[aria-pressed="true"]')).waitFor();
+      assert.equal(
+        await gallery.getByRole("button", { pressed: true }).count(),
+        1,
+      );
+      assert(await button.evaluate((el) => document.activeElement === el));
+      const image = gallery.locator("img[data-screen-image]:visible");
+      await image.scrollIntoViewIfNeeded();
+      const details = await image.evaluate(async (el) => {
+        await el.decode();
+        return {
+          src: el.currentSrc,
+          alt: el.alt.trim(),
+          width: el.naturalWidth,
+          height: el.naturalHeight,
+        };
+      });
+      assert(
+        details.alt.length > 0 &&
+          details.width > 0 &&
+          details.height > details.width,
+      );
+      images.add(details.src);
+      const description = (
+        await gallery.locator("[data-screen-description]:visible").innerText()
+      ).trim();
+      assert(description.length > 0);
+      descriptions.add(description);
+    }
+    assert.equal(images.size, count, "每个界面要有对应的实机截图");
+    assert.equal(descriptions.size, count, "切换界面时说明也应更新");
+  } finally {
+    await page.close();
+  }
+});
+
+test("从小屏到桌面均可浏览完整首页", async () => {
   for (const viewport of [
     { width: 320, height: 568 },
     { width: 390, height: 844 },
+    { width: 400, height: 830 },
     { width: 768, height: 900 },
     { width: 1024, height: 600 },
     { width: 1440, height: 1000 },
@@ -122,76 +163,30 @@ test("各种尺寸背景铺满视口，仅顶部保留操作入口", async () =>
     const page = await browser.newPage({ viewport, reducedMotion: "reduce" });
     try {
       await page.goto(base, { waitUntil: "networkidle" });
-      const fits = await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      );
-      assert(
-        fits,
-        `Homepage must not overflow horizontally at ${viewport.width}x${viewport.height}`,
-      );
-      const background = await page
-        .locator(".landscape-background")
-        .boundingBox();
-      assert.deepEqual(background, {
-        x: 0,
-        y: 0,
-        width: viewport.width,
-        height: viewport.height,
-      });
-      assert(
-        await page.evaluate(
-          () => document.documentElement.scrollHeight <= innerHeight,
-        ),
-      );
-      for (const selector of [".site-header", ".site-footer"]) {
-        assert.equal(
-          await page
-            .locator(selector)
-            .evaluate((el) => getComputedStyle(el).backgroundColor),
-          "rgba(0, 0, 0, 0)",
+      for (const control of [
+        page.getByRole("heading", { level: 1 }),
+        page.locator('main a[href="#features"]').first(),
+        page.locator("#features").getByRole("tab").last(),
+        page.locator("#screens button[aria-pressed]").last(),
+        page.locator('footer a[href="/privacy"]'),
+      ]) {
+        await control.scrollIntoViewIfNeeded();
+        assert(await control.isVisible());
+        const bounds = await control.boundingBox();
+        assert(
+          bounds.x >= -1 && bounds.x + bounds.width <= viewport.width + 1,
+          `首页控件在 ${viewport.width}px 宽度下必须可见`,
         );
       }
-      const hero = await page.locator(".brand-stage").boundingBox();
-      const main = await page.locator("main").boundingBox();
-      assert(hero.x >= main.x && hero.x + hero.width <= main.x + main.width);
-      assert(hero.y >= main.y && hero.y + hero.height <= main.y + main.height);
       assert(
-        await page
-          .getByText("助力失业者找到好的归属", { exact: true })
-          .isVisible(),
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        `首页在 ${viewport.width}px 横向溢出`,
       );
-      const login = page
-        .locator("header")
-        .getByRole("link", { name: "登录博简", exact: true });
-      assert(await login.isVisible());
-      assert.equal(await login.getAttribute("href"), "/login");
-      const download = page
-        .locator("header")
-        .getByRole("button", { name: "下载 App" });
-      assert(await download.isVisible());
-      const downloadBounds = await download.boundingBox();
-      const loginBounds = await login.boundingBox();
-      assert(
-        downloadBounds.x + downloadBounds.width < loginBounds.x,
-        "Download must be left of login",
-      );
-      await download.click();
-      await page.getByRole("status").filter({ hasText: "暂未上线" }).waitFor();
-      const notification = await page.getByRole("status").boundingBox();
-      assert(
-        notification.x >= 12 &&
-          notification.x + notification.width <= viewport.width - 12,
-      );
-      await page.keyboard.press("Escape");
-      await page.getByRole("status").waitFor({ state: "hidden" });
-      const actionBounds = await page.locator(".landing-actions").boundingBox();
-      assert(
-        actionBounds.y >= 0 &&
-          actionBounds.y + actionBounds.height < 100 &&
-          actionBounds.x + actionBounds.width <= viewport.width - 12,
-      );
+      await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
       await page.screenshot({
-        path: `artifacts/type-home-${viewport.width}.png`,
+        path: `artifacts/product-home-${viewport.width}.png`,
         fullPage: true,
       });
     } finally {
@@ -200,100 +195,122 @@ test("各种尺寸背景铺满视口，仅顶部保留操作入口", async () =>
   }
 });
 
-test("下载通知支持键盘、Esc关闭、自动消失和重复点击计时", async () => {
-  const page = await browser.newPage();
+test("功能分组可用键盘逐项阅读，减少动态效果时仍可浏览问答", async () => {
+  const page = await browser.newPage({ reducedMotion: "reduce" });
   try {
     await page.goto(base, { waitUntil: "networkidle" });
-    const trigger = page
-      .locator("header")
-      .getByRole("button", { name: "下载 App" });
-    const notification = page.getByRole("status");
-    await trigger.focus();
+    const features = page.locator("#features");
+    const tabs = features.getByRole("tab"),
+      count = await tabs.count();
+    assert(count >= 5);
+    const content = new Set();
+    await tabs.first().focus();
+    await page.keyboard.press("Home");
+    for (let index = 0; index < count; index++) {
+      if (index) await page.keyboard.press("ArrowRight");
+      const tab = tabs.nth(index);
+      await tab.and(features.locator('[aria-selected="true"]')).waitFor();
+      assert(await tab.evaluate((el) => document.activeElement === el));
+      const panel = features.getByRole("tabpanel");
+      assert(await panel.isVisible());
+      const value = (await panel.innerText()).trim();
+      assert(value.length > 0);
+      content.add(value);
+    }
+    assert.equal(content.size, count, "各分组展示对应的功能介绍");
+    const question = page.locator("#questions details").first();
+    const original = await question.evaluate((el) => el.open);
+    await question.locator("summary").focus();
     await page.keyboard.press("Enter");
-    await notification.waitFor();
-    assert.equal(await notification.innerText(), "暂未上线");
-    assert.equal(await page.locator(".download-popover").count(), 0);
-    assert(
-      await trigger.evaluate((element) => document.activeElement === element),
-    );
-    await page.keyboard.press("Escape");
-    await notification.waitFor({ state: "hidden" });
-    await page.clock.install();
-    await trigger.click();
-    await page.clock.fastForward(2000);
-    await page
-      .locator("header")
-      .getByRole("button", { name: "下载 App" })
-      .click();
-    assert.equal(await notification.count(), 1);
-    await page.clock.fastForward(2000);
-    assert(await notification.isVisible());
-    await page.clock.fastForward(1100);
-    await notification.waitFor({ state: "hidden" });
-  } finally {
-    await page.close();
-  }
-});
-
-test("减少动态效果与页面往返保持可操作，不残留重复场景", async () => {
-  const page = await browser.newPage();
-  try {
-    await page.goto(base, { waitUntil: "networkidle" });
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
-    assert(
-      await page
-        .getByRole("heading", {
-          level: 1,
-          name: "助力失业者找到好的归属",
-          exact: true,
-        })
-        .isVisible(),
-    );
-    await page
-      .locator("header")
-      .getByRole("link", { name: "登录博简", exact: true })
-      .click();
-    await page.waitForURL(base + "/login");
-    await page.locator(".login-back").click();
-    await page.waitForURL(base + "/");
+    assert.equal(await question.evaluate((el) => el.open), !original);
     assert.equal(
-      await page.locator("main .landing-actions, .landing-title").count(),
+      await page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .filter(
+              (animation) =>
+                animation.playState === "running" &&
+                animation.effect?.getTiming().iterations === Infinity,
+            ).length,
+      ),
       0,
     );
-    assert.equal(await page.locator(".site-atmosphere").count(), 0);
-    assert.equal(await page.locator(".brand-stage").count(), 1);
-    assert(
-      await page
-        .locator("header")
-        .getByRole("link", { name: "登录博简", exact: true })
-        .isVisible(),
-    );
   } finally {
     await page.close();
   }
 });
 
-test("关闭JavaScript仍能打开登录页与法律文件", async () => {
+test("关闭 JavaScript 仍能阅读产品内容、截图、常见问题和法律文件", async () => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   try {
     const page = await context.newPage();
     await page.goto(base);
     assert(await page.getByRole("heading", { level: 1 }).isVisible());
-    await page
-      .locator("header")
-      .getByRole("link", { name: "登录博简", exact: true })
-      .click();
-    await page.waitForURL(base + "/login");
-    assert(await page.getByRole("checkbox").isVisible());
-    await page.locator(".login-back").click();
-    await page
-      .locator(".site-footer")
-      .getByRole("link", { name: "隐私政策", exact: true })
-      .click();
-    await page.waitForURL(base + "/privacy");
-    assert(await page.getByRole("heading", { level: 1 }).isVisible());
+    const shot = page
+      .locator("#screens img[data-screen-image]:visible")
+      .first();
+    await shot.scrollIntoViewIfNeeded();
+    assert(
+      await shot.evaluate(async (el) => {
+        await el.decode();
+        return el.naturalWidth > 0;
+      }),
+    );
+    await page.locator('main a[href="#features"]').first().click();
+    await page.waitForURL(base + "/#features");
+    assert(await page.locator("#features h2").isVisible());
+    const directory = page.locator('#features [aria-label="完整功能目录"]');
+    const groups = directory.locator("article");
+    assert((await groups.count()) >= 5);
+    for (const group of await groups.all()) {
+      assert(await group.getByRole("heading").isVisible());
+      assert(await group.locator("dd").first().isVisible());
+    }
+    const question = page.locator("#questions details:not([open])").first();
+    await question.locator("summary").click();
+    assert((await page.locator("#questions details[open]").count()) > 0);
+    for (const path of ["/privacy", "/terms"]) {
+      await page.locator(`footer a[href="${path}"]`).click();
+      await page.waitForURL(base + path);
+      assert(await page.getByRole("heading", { level: 1 }).isVisible());
+      await page.locator('header a[href="/"]').first().click();
+      await page.waitForURL(base + "/");
+    }
   } finally {
     await context.close();
+  }
+});
+
+test("下载提示支持键盘、Esc 关闭和重复触发计时", async () => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  try {
+    await page.goto(base, { waitUntil: "networkidle" });
+    const trigger = page
+      .locator(".site-header")
+      .getByRole("button", { name: "下载 App" });
+    const notice = page
+      .getByRole("status")
+      .filter({ hasText: "官网暂未开放下载" });
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await notice.waitFor();
+    const bounds = await notice.boundingBox();
+    assert(bounds.x >= 0 && bounds.x + bounds.width <= 390);
+    assert(
+      await trigger.evaluate((element) => document.activeElement === element),
+    );
+    await page.keyboard.press("Escape");
+    await notice.waitFor({ state: "hidden" });
+    await page.clock.install();
+    await trigger.click();
+    await page.clock.fastForward(2000);
+    await trigger.click();
+    await page.clock.fastForward(2000);
+    assert(await notice.isVisible());
+    await page.clock.fastForward(1100);
+    await notice.waitFor({ state: "hidden" });
+  } finally {
+    await page.close();
   }
 });

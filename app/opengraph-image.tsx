@@ -13,8 +13,8 @@ export default function Image() {
         width: "100%",
         height: "100%",
         padding: "65px 80px",
-        background: "#ffffff",
-        color: "#172235",
+        background: "#101322",
+        color: "#f5f7ff",
       }}
     >
       <div
@@ -26,7 +26,7 @@ export default function Image() {
         }}
       >
         <span>博简</span>
-        <span style={{ fontSize: 16, color: "#69758a" }}>简历与求职交流</span>
+        <span style={{ fontSize: 16, color: "#c0cae4" }}>简历与求职交流</span>
       </div>
       <div
         style={{
@@ -37,19 +37,19 @@ export default function Image() {
           letterSpacing: -3,
         }}
       >
-        <span>博简</span>
-        <span style={{ color: "#3268ea" }}>简历编辑与交流社区</span>
+        <span>从经历到简历，</span>
+        <span style={{ color: "#aec2ff" }}>一部手机搞定。</span>
       </div>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           fontSize: 22,
-          color: "#69758a",
+          color: "#c0cae4",
         }}
       >
-        <span>简历编辑 · 简历求指点 · 经验交流</span>
-        <span>App 即将开放</span>
+        <span>AI 起草 · 简历优化 · 好友批注</span>
+        <span>BOJIAN</span>
       </div>
     </div>,
     size,

@@ -69,11 +69,21 @@ export function DownloadNoticeProvider({ children }: { children: ReactNode }) {
                 strokeLinecap="round"
               />
             </svg>
-            暂未上线
+            官网暂未开放下载
           </div>
         )}
       </div>
     </DownloadNotice.Provider>
+  );
+}
+
+export function DownloadButton({ className }: { className?: string }) {
+  const notify = useContext(DownloadNotice);
+  return (
+    <button type="button" className={className} onClick={notify}>
+      <DownloadIcon />
+      下载 App
+    </button>
   );
 }
 

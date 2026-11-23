@@ -87,7 +87,7 @@ try:
         raise RuntimeError("Preflight container did not become healthy")
     run("docker", "exec", preflight, "node", "-e", """
       (async()=>{
-        for(const path of ['/', '/login', '/console', '/console/template-guide', '/opengraph-image']) {
+        for(const path of ['/', '/privacy', '/terms', '/opengraph-image']) {
           const response=await fetch('http://127.0.0.1:3000'+path);
           if(response.status!==200) throw Error(path+': '+response.status);
           await response.arrayBuffer();

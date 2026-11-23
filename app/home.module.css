@@ -1,0 +1,151 @@
+.home {
+  --width: min(1200px, calc(100% - clamp(40px, 8vw, 120px)));
+  color: #171c29;
+  background: #fff;
+}
+.faq {
+  width: var(--width);
+  margin: auto;
+  padding: clamp(72px, 9vw, 128px) 0;
+  display: grid;
+  align-items: start;
+  grid-template-columns: 1fr 1.6fr;
+  gap: clamp(32px, 5vw, 80px);
+}
+.faqHead {
+  font-size: clamp(1.9rem, 3.4vw, 2.8rem);
+  line-height: 1.25;
+  font-weight: 740;
+  letter-spacing: -0.04em;
+  color: #0f1a33;
+}
+.answers {
+  border-top: 1.5px solid #0f1a33;
+}
+.answers details {
+  border-bottom: 1px solid #dfe4ef;
+}
+.answers summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 0;
+  font-weight: 640;
+  font-size: 1.08rem;
+  list-style: none;
+  transition: color 0.2s;
+}
+.answers summary b {
+  font-size: 0.8rem;
+  color: #365fe5;
+  font-variant-numeric: tabular-nums;
+}
+.answers summary:hover {
+  color: #365fe5;
+}
+.answers summary::-webkit-details-marker {
+  display: none;
+}
+.answers summary span {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #f1f4fb;
+  transition: transform 0.25s, background 0.2s;
+}
+.answers summary span::before,
+.answers summary span::after {
+  content: "";
+  grid-area: 1 / 1;
+  width: 12px;
+  height: 1.5px;
+  background: currentColor;
+}
+.answers summary span::after {
+  transform: rotate(90deg);
+}
+.answers details[open] summary span {
+  transform: rotate(45deg);
+  background: #365fe5;
+  color: #fff;
+}
+.answers p {
+  color: #566176;
+  line-height: 1.85;
+  padding: 0 48px 26px 36px;
+}
+.cta {
+  padding: 0 clamp(16px, 3vw, 40px) clamp(16px, 3vw, 40px);
+}
+.ctaInner {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(64px, 9vw, 120px) clamp(24px, 6vw, 80px);
+  border-radius: clamp(24px, 3vw, 40px);
+  background:
+    radial-gradient(60% 80% at 85% 20%, #5b85ff 0%, transparent 70%),
+    radial-gradient(50% 70% at 10% 100%, #1f3fb8 0%, transparent 70%),
+    #2b50d0;
+  color: #fff;
+  text-align: center;
+}
+.ctaInner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(#ffffff12 1px, transparent 1px),
+    linear-gradient(90deg, #ffffff12 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(70% 70% at 50% 50%, #000, transparent);
+  pointer-events: none;
+}
+.ctaInner h2 {
+  position: relative;
+  font-size: clamp(2.2rem, 5.6vw, 4.4rem);
+  line-height: 1.15;
+  font-weight: 760;
+  letter-spacing: -0.045em;
+}
+.ctaButton {
+  position: relative;
+  margin-top: 34px;
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 100px;
+  background: #fff;
+  color: #1f3fb8;
+  font-size: 1.02rem;
+  font-weight: 680;
+  box-shadow: 0 18px 36px -14px #0a1a5c;
+  transition: transform 0.18s;
+}
+.ctaButton:hover {
+  transform: translateY(-2px);
+}
+.ctaButton svg {
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 760px) {
+  .faq {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .answers summary {
+    gap: 12px;
+    font-size: 1rem;
+  }
+  .answers p {
+    padding: 0 8px 22px 0;
+  }
+}

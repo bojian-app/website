@@ -1,62 +1,70 @@
 "use client";
 
 import Image from "next/image";
+import { useRef } from "react";
+import styles from "./site-chrome.module.css";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AccountButton } from "./account-button";
 import { DownloadMenu } from "./download-menu";
 
-function ChromeIcon({ kind }: { kind: "templates" | "guide" | "home" }) {
-  const paths = {
-    templates: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
-    guide:
-      "M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1Z",
-    home: "m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10Z",
-  };
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d={paths[kind]}
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+const sections = [
+  { href: "/#story", label: "流程" },
+  { href: "/#features", label: "功能" },
+  { href: "/#community", label: "社区" },
+  { href: "/#questions", label: "问答" },
+];
 
 export function SiteHeader() {
+  const menu = useRef<HTMLDetailsElement>(null);
+  function closeMenu() {
+    if (menu.current) menu.current.open = false;
+  }
   const pathname = usePathname();
   if (pathname.startsWith("/resume-review/")) return null;
-  const consolePage =
-    pathname === "/console" || pathname.startsWith("/console/");
-  const guide = pathname === "/console/template-guide";
   return (
-    <header className={`site-header${consolePage ? " console-header" : ""}`}>
-      <div className="header-inner">
-        <Link className="brand" href="/" aria-label="博简首页">
+    <header className={`site-header ${styles.header}`}>
+      <div className={styles.inner}>
+        <Link className={styles.brand} href="/" aria-label="博简首页">
           <Image src="/brand/app-icon.png" width={38} height={38} alt="" />
           <span>博简</span>
         </Link>
-        {consolePage && (
-          <nav className="console-header-nav" aria-label="控制台页面导航">
-            <Link href="/console" aria-current={!guide ? "page" : undefined}>
-              <ChromeIcon kind="templates" />
-              模板管理
+        <nav className={styles.nav} aria-label="官网导航">
+          {sections.map(({ href, label }) => (
+            <Link key={href} href={href}>
+              {label}
             </Link>
-            <Link
-              href="/console/template-guide"
-              aria-current={guide ? "page" : undefined}
-            >
-              <ChromeIcon kind="guide" />
-              制作指南
-            </Link>
-          </nav>
-        )}
-        <div className="header-actions landing-actions">
+          ))}
+        </nav>
+        <div className={styles.actions}>
           <DownloadMenu />
-          <AccountButton />
+          <details
+            ref={menu}
+            className={styles.mobileMenu}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                closeMenu();
+                menu.current?.querySelector("summary")?.focus();
+              }
+            }}
+          >
+            <summary aria-label="官网导航菜单">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M4 7h16M4 12h16M4 17h16"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </summary>
+            <nav aria-label="移动端官网导航">
+              {sections.map(({ href, label }) => (
+                <Link key={href} href={href} onClick={closeMenu}>
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </details>
         </div>
       </div>
     </header>
@@ -66,11 +74,13 @@ export function SiteHeader() {
 export function SiteFooter({ year }: { year: number }) {
   const pathname = usePathname();
   if (pathname.startsWith("/resume-review/")) return null;
-  if (pathname === "/console" || pathname.startsWith("/console/")) return null;
   return (
-    <footer className="site-footer wrap">
+    <footer className={`site-footer wrap ${styles.footer}`}>
       <div className="footer-bottom">
-        <span>© {year} 博简</span>
+        <span className={styles.imprint}>
+          <b>博简</b>
+          <span>© {year}</span>
+        </span>
         <div>
           <Link href="/privacy">隐私政策</Link>
           <Link href="/terms">用户协议</Link>
@@ -84,39 +94,5 @@ export function SiteFooter({ year }: { year: number }) {
         </div>
       </div>
     </footer>
-  );
-}
-
-export function ConsoleNavigation() {
-  const pathname = usePathname();
-  return (
-    <nav className="console-rail" aria-label="控制台快捷导航">
-      <Link
-        href="/console"
-        aria-label="我的模板"
-        title="我的模板"
-        aria-current={pathname === "/console" ? "page" : undefined}
-      >
-        <ChromeIcon kind="templates" />
-      </Link>
-      <Link
-        href="/console/template-guide"
-        aria-label="模板制作指南"
-        title="模板制作指南"
-        aria-current={
-          pathname === "/console/template-guide" ? "page" : undefined
-        }
-      >
-        <ChromeIcon kind="guide" />
-      </Link>
-      <Link
-        className="console-rail-home"
-        href="/"
-        aria-label="返回博简首页"
-        title="返回博简首页"
-      >
-        <ChromeIcon kind="home" />
-      </Link>
-    </nav>
   );
 }
