@@ -29,7 +29,7 @@ try {
   const heading = page.getByRole("heading", { level: 1 });
   assert.equal(
     (await heading.innerText()).replace(/\s/g, ""),
-    "从经历到简历，一部手机搞定。",
+    "每段经历，都值得好好写下。",
   );
   const screens = page.locator("#screens");
   const selectors = screens.locator("button[aria-pressed]");
