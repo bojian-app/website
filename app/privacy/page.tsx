@@ -4,7 +4,7 @@ import { LegalDocument } from "../../components/legal-document";
 
 export const metadata: Metadata = {
   title: "隐私政策",
-  description: "最优简隐私政策",
+  description: "Z优简隐私政策",
 };
 
 export default function Privacy() {

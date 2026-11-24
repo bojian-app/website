@@ -1,6 +1,6 @@
-# 最优简官网
+# Z优简官网
 
-Next.js App Router、React 与 TypeScript 构建的最优简官网。
+Next.js App Router、React 与 TypeScript 构建的Z优简官网。
 
 ## 本地运行
 

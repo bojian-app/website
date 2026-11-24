@@ -6,13 +6,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://bojian.kelance.cn"),
   title: {
-    default: "最优简｜AI 简历创作与求职交流",
-    template: "%s｜最优简",
+    default: "Z优简｜AI 简历创作与求职交流",
+    template: "%s｜Z优简",
   },
   description:
-    "用最优简整理经历、导入简历、对照 AI 优化建议，邀请朋友逐段批注，再导出 PDF 或 Word。",
+    "用Z优简整理经历、导入简历、对照 AI 优化建议，邀请朋友逐段批注，再导出 PDF 或 Word。",
   openGraph: {
-    title: "最优简 — 简历编辑与交流社区",
+    title: "Z优简 — 简历编辑与交流社区",
     description: "从整理经历到投递前的修改，在手机上完成简历创作。",
     locale: "zh_CN",
     type: "website",

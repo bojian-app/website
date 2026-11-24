@@ -8,21 +8,21 @@ const scenes = [
     title: "在手机上编辑简历",
     description: "支持文件导入、分模块编辑，以及 PDF、DOCX 导出。",
     image: "/screens/editor-demo.png",
-    alt: "最优简 App 简历编辑界面，隐私信息已替换",
+    alt: "Z优简 App 简历编辑界面，隐私信息已替换",
   },
   {
     label: "简历求指点",
     title: "发布简历，获取建议",
     description: "附上问题，和社区用户讨论具体修改。",
     image: "/screens/feedback-demo.png",
-    alt: "最优简 App 简历求指点界面，隐私信息已替换",
+    alt: "Z优简 App 简历求指点界面，隐私信息已替换",
   },
   {
     label: "经验交流",
     title: "分享求职和面试经验",
     description: "阅读经验、发表评论，收藏有用的内容。",
     image: "/screens/discovery-demo.png",
-    alt: "最优简 App 经验交流界面，隐私信息已替换",
+    alt: "Z优简 App 经验交流界面，隐私信息已替换",
   },
 ];
 export function Experience() {
@@ -80,7 +80,7 @@ export function Experience() {
       <div
         className="experience-tabs"
         role="tablist"
-        aria-label="探索最优简功能"
+        aria-label="探索Z优简功能"
         aria-orientation="horizontal"
       >
         {scenes.map((item, i) => (
