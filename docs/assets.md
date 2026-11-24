@@ -39,7 +39,7 @@
 - editor：company name → “示例科技有限公司”；start/end date → “2023-07 / 2024-04”。Preserve job “前端开发工程师” and other UI labels/layout. No other personal information should appear.
 - feedback：two photo avatars → geometric monogram avatars；nicknames → “简历练习生 / 博简体验官”；地区 → “公开分享”；second resume title → “前端开发工程师 · 示例简历”。Preserve all functional UI labels and post body text.
 
-`public/brand/app-icon.png` 复制自移动项目的 `assets/branding/app_icon.png`（由同目录 `app_icon.svg` 渲染的 Z优简 字标圆角图标）。图标不含个人数据。手机边框、示例简历纸、连接线与文件插图由 HTML/CSS/SVG 实现，没有使用第三方照片或虚构产品功能。
+`public/brand/app-icon.png` 来自博简移动项目的品牌源素材。图标不含个人数据。手机边框、示例简历纸、连接线与文件插图由 HTML/CSS/SVG 实现，没有使用第三方照片或虚构产品功能。
 
 
 ## 历史白色建筑背景（2026-10-21，已移出页面）
