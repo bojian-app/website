@@ -162,7 +162,7 @@ export function DeviceGallery() {
                 height={2376}
                 sizes="(max-width: 760px) 52vw, 250px"
                 alt={
-                  offset === 0 ? `博简 App · ${item.label}完整手机截屏` : ""
+                  offset === 0 ? `拾页 App · ${item.label}完整手机截屏` : ""
                 }
                 {...(offset === 0 ? { "data-screen-image": "" } : {})}
               />

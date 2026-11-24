@@ -333,7 +333,7 @@ test("Mobile supports selected text comments and rejects cross-origin writes", a
   await page.setViewportSize({ width: 390, height: 844 });
   assert.match(
     await page.locator("main header").innerText(),
-    /^博简\s+游客 [0-9A-F]{6}$/,
+    /^拾页\s+游客 [0-9A-F]{6}$/,
   );
   await page.evaluate(() => {
     const element = document.querySelector(

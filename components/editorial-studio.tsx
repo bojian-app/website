@@ -256,7 +256,7 @@ export default function EditorialStudio() {
             。
           </h1>
           <p className={styles.lead}>
-            摊位是你排的，地图也是你画的。把这些细节讲给博简，对照 AI
+            摊位是你排的，地图也是你画的。把这些细节讲给拾页，对照 AI
             的改写，决定哪一句写进简历。
           </p>
           <div className={styles.actions}>
@@ -296,7 +296,7 @@ export default function EditorialStudio() {
                 <div className={styles.backSheet} aria-hidden="true" />
                 <div className={styles.front} data-leaf>
                   <div className={styles.paperHeader}>
-                    <span>博简校样</span>
+                    <span>拾页校样</span>
                     <span>项目经历</span>
                   </div>
                   <h2>校园旧物市集</h2>

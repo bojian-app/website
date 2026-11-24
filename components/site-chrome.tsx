@@ -24,9 +24,9 @@ export function SiteHeader() {
   return (
     <header className={`site-header ${styles.header}`}>
       <div className={styles.inner}>
-        <Link className={styles.brand} href="/" aria-label="博简首页">
+        <Link className={styles.brand} href="/" aria-label="拾页首页">
           <Image src="/brand/app-icon.png" width={38} height={38} alt="" />
-          <span>博简</span>
+          <span>拾页</span>
         </Link>
         <nav className={styles.nav} aria-label="官网导航">
           {sections.map(({ href, label }) => (
@@ -78,7 +78,7 @@ export function SiteFooter({ year }: { year: number }) {
     <footer className={`site-footer wrap ${styles.footer}`}>
       <div className="footer-bottom">
         <span className={styles.imprint}>
-          <b>博简</b>
+          <b>拾页</b>
           <span>© {year}</span>
         </span>
         <div>

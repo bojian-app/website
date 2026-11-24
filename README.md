@@ -1,6 +1,6 @@
-# 博简官网 · Bojian
+# 拾页官网
 
-Next.js App Router、React 与 TypeScript 构建的博简官网。
+Next.js App Router、React 与 TypeScript 构建的拾页官网。
 
 ## 本地运行
 
