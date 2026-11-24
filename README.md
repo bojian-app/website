@@ -1,6 +1,6 @@
-# 拾页官网
+# 最优简官网
 
-Next.js App Router、React 与 TypeScript 构建的拾页官网。
+Next.js App Router、React 与 TypeScript 构建的最优简官网。
 
 ## 本地运行
 

@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 export const runtime = "nodejs";
-export const alt = "拾页，简历编辑与交流社区";
+export const alt = "最优简，简历编辑与交流社区";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export default function Image() {
@@ -25,7 +25,7 @@ export default function Image() {
           fontSize: 30,
         }}
       >
-        <span>拾页</span>
+        <span>最优简</span>
         <span style={{ fontSize: 16, color: "#c0cae4" }}>简历与求职交流</span>
       </div>
       <div

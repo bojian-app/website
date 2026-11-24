@@ -146,7 +146,7 @@ export function LiquidParticles() {
       positions.set([Math.cos(a) * r, y, Math.sin(a) * r], i * 3);
       seeds.set([random(), random(), random(), random()], i * 4);
     }
-    const welcome = particleText("欢迎使用拾页", count);
+    const welcome = particleText("欢迎使用最优简", count);
     const guide = particleText("下滑查看用户指引", count);
     if (!welcome || !guide) {
       geometry.dispose();
@@ -392,7 +392,7 @@ export function LiquidParticles() {
     >
       <div className="liquid-fallback" />
       <div className="particle-fallback-text">
-        <span>欢迎使用拾页</span>
+        <span>欢迎使用最优简</span>
         <span>下滑查看用户指引</span>
       </div>
       <canvas />

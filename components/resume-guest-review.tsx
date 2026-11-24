@@ -345,7 +345,7 @@ export function ResumeGuestReview({ token }: { token: string }) {
   return (
     <main id="main" className={styles.page}>
       <header className={styles.header}>
-        <span className={styles.brand}>拾页</span>
+        <span className={styles.brand}>最优简</span>
         {guest && <span className={styles.guest}>{guest.display_name}</span>}
       </header>
       {error && (

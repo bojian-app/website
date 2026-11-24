@@ -139,7 +139,7 @@ export default function ProductShowcase() {
           <div
             className={styles.tabs}
             role="tablist"
-            aria-label="拾页功能"
+            aria-label="最优简功能"
             aria-orientation="vertical"
             data-feature-tabs
           >
