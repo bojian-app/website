@@ -1,5 +1,15 @@
 # 官网发布记录
 
+## 2026-11-27 · website-20261127-resume-share-r3
+
+简历外链页头部改为与 App 一致：姓名下方依次显示电话、邮箱、出生日期（或年龄）和性别，照片靠右顶部对齐；性别显示“男／女”。配套 API `resume-share-20261127-r3`（只显示年龄时不再返回出生日期，无迁移）。
+
+镜像 ID：`sha256:a99993fa20f69d5e8d3ae8f9b79a926e10c4baeb6a12745ac13747ec1bedf0a5`；镜像包 SHA256：`4a56ccdff100038360bce953f5b72bc3a5665886f6fcc00db55dc159e5ae8210`；源码 `101c585` 加未提交改动，与上一版相比仅分享页两个文件不同。上一镜像：`sha256:73db3cf10b222cab99445bc338b42d6459dcf8a6994eed3175a7668b81d52eb6`（website-20261127-resume-share-r2）。
+
+验证：类型检查、本地假数据手机宽度渲染通过；线上主要页面、API health/ready 及失效外链提示正常，容器 healthy、重启 0，其余容器未变。新版头部待用真实分享链接人工验收。
+
+回滚：`sh /home/ubuntu/bojian-releases/website-20261127-resume-share-r3/rollback.sh`；后续整体 Compose 操作保留该发布目录下的 `compose.override.yaml`。
+
 ## 2026-11-24 · website-20261124-privacy-r2
 
 北京时间 10:57 前后发布。隐私政策升至 V3.2：DeepSeek 改为单独一节“向 DeepSeek 提供个人信息”，写明接收方联系方式、单独同意、可能用于模型训练、“设置—AI 功能授权”撤回入口，以及同意与撤回记录作为依法取得同意的凭证；同时细化单段生成字段、敏感信息与境外提供表述。配套 API `ai-consent-20261124-r1` 已于 10:55 发布（迁移 093）。

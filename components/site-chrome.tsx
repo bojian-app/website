@@ -14,13 +14,17 @@ const sections = [
   { href: "/#questions", label: "问答" },
 ];
 
+// Shared resume pages show only the document and their own compact header.
+const documentPage = (pathname: string) =>
+  pathname.startsWith("/resume-review/") || pathname.startsWith("/resume/");
+
 export function SiteHeader() {
   const menu = useRef<HTMLDetailsElement>(null);
   function closeMenu() {
     if (menu.current) menu.current.open = false;
   }
   const pathname = usePathname();
-  if (pathname.startsWith("/resume-review/")) return null;
+  if (documentPage(pathname)) return null;
   return (
     <header className={`site-header ${styles.header}`}>
       <div className={styles.inner}>
@@ -73,7 +77,7 @@ export function SiteHeader() {
 
 export function SiteFooter({ year }: { year: number }) {
   const pathname = usePathname();
-  if (pathname.startsWith("/resume-review/")) return null;
+  if (documentPage(pathname)) return null;
   return (
     <footer className={`site-footer wrap ${styles.footer}`}>
       <div className="footer-bottom">
